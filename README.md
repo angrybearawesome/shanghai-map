@@ -30,9 +30,9 @@ git push
 지도 핀과 아이콘은 JS가 이 속성들을 읽어서 자동으로 만들어 주므로, 따로 손댈 곳이 없습니다.
 
 ```html
-<article class="card" data-id="15" data-group="cafe" data-fix="ok"
+<article class="card" data-id="19" data-group="cafe" data-fix="ok"
          data-lat="31.2000" data-lon="121.4500" data-kw="검색용 상호 中文">
-  <div class="c-head"><div class="idx">15</div>
+  <div class="c-head"><div class="idx">19</div>
     <div class="c-title"><h3 class="c-name">가게 이름 (Store Name)</h3><span class="c-tag">한줄 분류</span></div></div>
   <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市... 주소</span></div></div>
   <p class="c-desc">설명.</p>
@@ -50,13 +50,13 @@ git push
 | | `approx` | 대략 위치 → 점선 핀 |
 | | `unknown` | 위치 모름 |
 | `data-nopin="1"` | (선택) | 지도에 핀을 만들지 않고 목록에만 표시 |
-| `data-far="1"` | (선택) | '전체' 버튼이 화면을 맞출 때 제외 (쑤저우처럼 먼 곳) |
+| `data-far="1"` | (선택) | '전체' 버튼이 화면을 맞출 때 제외 (쑤저우·푸동공항처럼 먼 곳) |
 | `data-lat` `data-lon` | 숫자 | GCJ-02(고덕) 기준 좌표 |
 | `data-kw` | 문자열 | 이름 검색에 쓰는 키워드. 중국어 상호가 있으면 그걸로 |
 
 주소 밑에 경고 배지를 붙이려면 `a-txt` 뒤에 `<span class="flag">좌표 근사</span>`를 넣습니다.
 
-카드만 추가하면 끝입니다. 헤더의 `N곳`, 문서 제목, 탭 라벨(`전체 15`), 범례 숫자,
+카드만 추가하면 끝입니다. 헤더의 `N곳`, 문서 제목, 탭 라벨(`전체 18`), 범례 숫자,
 헤더 안내문의 '주소를 확인하지 못한 N곳', 기록 바의 분모, 그룹 헤더 범위,
 푸터의 번호 목록은 모두 카드에서 계산되므로 손댈 필요가 없습니다.
 푸터 번호는 숫자순으로 정렬되고, 그룹 번호가 연속이 아니면 범위 대신 개수로 표시됩니다.
