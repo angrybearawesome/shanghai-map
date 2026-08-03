@@ -209,6 +209,26 @@
   .rbtn.ghost{background:transparent; color:#a3917a; border-color:#eee2c8}
   .rbtn:disabled{opacity:.4; cursor:default}
 
+  /* ── 일일 루트 ── */
+  #routebar{padding:8px 12px 9px; background:var(--gold-soft); border-bottom:1px solid #f2e5c8}
+  .rdays{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none}
+  .rdays::-webkit-scrollbar{display:none}
+  .rday{flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; padding:5px 11px;
+    border:1px solid #e6d6ab; border-radius:20px; background:#fff; color:#8a6a1e;
+    font-family:var(--sans); font-size:11.5px; font-weight:600; cursor:pointer}
+  .rday i{font-style:normal; width:8px; height:8px; border-radius:50%}
+  .rday.on{background:var(--gold-d); border-color:var(--gold-d); color:#fff}
+  .rsteps{display:flex; align-items:center; gap:3px 5px; flex-wrap:wrap; margin-top:8px;
+    font-size:11px; line-height:1.7; color:#c3a45c}
+  .rsteps button{border:0; background:none; padding:0 1px; font-family:var(--sans);
+    font-size:11px; font-weight:600; color:#7a5c12; cursor:pointer;
+    text-decoration:underline; text-underline-offset:2px}
+  #routes{position:absolute; top:0; left:0; width:1px; height:1px; overflow:visible}
+  #routes path{fill:none; stroke-width:2.5; stroke-dasharray:7 5; stroke-linecap:round;
+    stroke-linejoin:round; opacity:.8}
+  #layer.routing .pin:not(.onroute){opacity:.35}
+  #layer.routing .pin:not(.onroute) .ord{display:none}
+
   #toast{position:fixed; left:50%; bottom:24px; transform:translate(-50%,14px); z-index:200; opacity:0;
     pointer-events:none; background:rgba(15,30,44,.94); color:#fff; padding:11px 17px; border-radius:24px;
     font-size:12.5px; max-width:86vw; text-align:center; transition:opacity .2s, transform .2s;
@@ -229,15 +249,16 @@
   /* ── 2단 레이아웃 (넓은 화면에서만 JS가 body.two를 켠다) ── */
   #list{max-width:760px; margin:0 auto}
   body.two{overflow:hidden}
-  body.two #list{max-width:none; margin:0; grid-column:1; grid-row:5; overflow-y:auto;
+  body.two #list{max-width:none; margin:0; grid-column:1; grid-row:6; overflow-y:auto;
     background:var(--bg); border-right:1px solid var(--line)}
   body.two .pane{display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr);
-    grid-template-rows:auto auto auto auto minmax(0,1fr) auto; height:100vh}
+    grid-template-rows:auto auto auto auto auto minmax(0,1fr) auto; height:100vh}
   body.two header{grid-column:1; grid-row:1}
   body.two #tabs{grid-column:1; grid-row:2}
   body.two .legend{grid-column:1; grid-row:3}
   body.two #recbar{grid-column:1; grid-row:4}
-  body.two footer{grid-column:1; grid-row:6; background:var(--surface); border-top:1px solid var(--line);
+  body.two #routebar{grid-column:1; grid-row:5}
+  body.two footer{grid-column:1; grid-row:7; background:var(--surface); border-top:1px solid var(--line);
     border-right:1px solid var(--line); padding:8px 14px; max-height:34vh; overflow-y:auto}
   body.two footer .fnote{border:0; padding:0; background:none}
   body.two #mapbox{grid-column:2; grid-row:1/-1; position:static}
@@ -273,9 +294,14 @@
     </span>
   </div>
 
+  <div id="routebar" hidden>
+    <div class="rdays" id="rdays"></div>
+    <div class="rsteps" id="rsteps" hidden></div>
+  </div>
+
   <div id="mapbox">
     <div id="map" tabindex="0">
-      <div id="layer"><div id="tiles"></div><div id="pins"></div></div>
+      <div id="layer"><div id="tiles"></div><svg id="routes"></svg><div id="pins"></div></div>
       <div id="scale">—<span></span></div>
       <div class="mapctl">
         <button id="zin" aria-label="확대">+</button>
@@ -445,7 +471,8 @@
         <b>핀 신뢰도</b> — 채워진 핀(<span class="ids" id="f-ok"></span>)은 등록된 주소·좌표로 찍었습니다. 점선 핀(<span class="ids" id="f-est"></span>)은 도로까지만 확인돼 수백 m 오차가 있을 수 있습니다. <span class="ids" id="f-off"></span>는 위치를 특정하지 못해 지도에 넣지 않고 목록에만 두었으니, 상호로 검색해서 찾아가세요.<br>
         <b>좌표계</b> — 중국 지도 기준(GCJ-02)이라 고덕지도·애플지도와는 맞고, 구글지도로 열면 조금 밀려 보일 수 있습니다.<br>
         <b>지도 배경</b> — 온라인일 때만 표시되고, 안 되면 격자 배경으로 바뀝니다. 핀·목록·주소 복사는 인터넷 없이도 동작합니다.<br>
-        <b>방문 기록</b> — 별을 누르면 방문한 순서대로 번호가 붙습니다. 기록은 이 브라우저에만 저장되니 친구 폰의 기록과는 따로 쌓입니다.
+        <b>방문 기록</b> — 별을 누르면 방문한 순서대로 번호가 붙습니다. 기록은 이 브라우저에만 저장되니 친구 폰의 기록과는 따로 쌓입니다.<br>
+        <b>일일 루트</b> — 방문한 날짜별로 기록 바 아래 1일차·2일차 칩이 생기고, 누르면 그날 다닌 순서가 지도에 점선으로 이어집니다. 점선은 방문 순서를 이은 직선일 뿐 실제 걷거나 탄 경로는 아닙니다. 새벽 4시 전의 방문은 전날 루트로 칩니다.
       </div>
     </details>
     <span class="sig">CAFE MAP · SINGLE FILE · NO API KEY</span>
@@ -563,8 +590,9 @@
     applyT();
     fillTiles();
     drawPins();
+    drawRoutes();
     if (activeId) openPop(activeId, false);
-    layer.className = zoom >= 14 ? 'near' : '';
+    layer.classList.toggle('near', zoom >= 14);   // className 대입은 routing 클래스를 지운다
     drawScale();
   }
 
@@ -663,13 +691,97 @@
   }
   function visitCount(){ return Object.keys(visits).length; }
 
+  /* ───── 일일 루트 ─────
+     방문 시각을 날짜로 묶으면 하루치 경로가 된다. 저장은 여전히 visits 하나뿐이고
+     루트는 매번 계산한다. 지도의 선은 방문 순서를 이은 직선일 뿐,
+     실제 도보·차량 경로가 아니므로 점선으로 그린다.
+     새벽 4시 이전 방문은 전날 루트로 친다 (자정 넘긴 술집 등). */
+  var routesSvg = document.getElementById('routes');
+  var rbar = document.getElementById('routebar'),
+      rdays = document.getElementById('rdays'),
+      rsteps = document.getElementById('rsteps');
+  var ROUTE_COLORS = ['#b5810a', '#1a5fbd', '#0a7b74', '#7c3aed', '#c2410c'];
+  var activeRoute = null;                 // null | 'all' | 날짜키
+
+  function dayKeyOf(ts){
+    var d = new Date(ts - 4 * 3600 * 1000);
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+  function routeDays(){                   // [{key, label, ids(방문순)}] 날짜순
+    var ids = Object.keys(visits).sort(function(a, b){ return visits[a] - visits[b]; });
+    var days = [], byKey = {};
+    ids.forEach(function(id){
+      var k = dayKeyOf(visits[id]);
+      if (!byKey[k]){
+        var d = new Date(visits[id] - 4 * 3600 * 1000);
+        byKey[k] = { key:k, label:(d.getMonth() + 1) + '/' + d.getDate(), ids:[] };
+        days.push(byKey[k]);
+      }
+      byKey[k].ids.push(id);
+    });
+    return days;
+  }
+  function routeColor(i){ return ROUTE_COLORS[i % ROUTE_COLORS.length]; }
+
+  function paintRoutes(){                 // 날짜 칩 + 선택된 날의 걸음 목록
+    var days = routeDays();
+    rbar.hidden = !days.length;
+    if (activeRoute && activeRoute !== 'all' &&
+        !days.some(function(d){ return d.key === activeRoute; })) activeRoute = null;
+    if (!days.length){ activeRoute = null; rsteps.hidden = true; return; }
+    var html = days.map(function(d, i){
+      var on = activeRoute === d.key;
+      return '<button class="rday' + (on ? ' on' : '') + '" data-day="' + d.key + '">' +
+             '<i style="background:' + (on ? '#fff' : routeColor(i)) + '"></i>' +
+             (i + 1) + '일차 · ' + d.label + ' <b>' + d.ids.length + '</b></button>';
+    }).join('');
+    if (days.length > 1)
+      html += '<button class="rday' + (activeRoute === 'all' ? ' on' : '') +
+              '" data-day="all">전체 루트</button>';
+    rdays.innerHTML = html;
+
+    var day = null;
+    days.forEach(function(d){ if (d.key === activeRoute) day = d; });
+    rsteps.hidden = !day;
+    if (day){
+      rsteps.innerHTML = day.ids.map(function(id, i){
+        var s = byId(id);
+        var nm = s ? s.name.replace(/\s*\(.*/, '') : id;
+        return (i ? '→ ' : '') + '<button data-step="' + id + '">' + (i + 1) + '.' + nm + '</button>';
+      }).join(' ');
+    }
+  }
+
+  function routeSpots(day){               // 그날 방문지 중 지도에 핀이 있는 곳만
+    return day.ids.map(byId).filter(function(s){ return s && !s.nopin; });
+  }
+  function drawRoutes(){
+    routesSvg.innerHTML = '';
+    layer.classList.toggle('routing', !!(activeRoute && activeRoute !== 'all'));
+    if (!activeRoute) return;
+    routeDays().forEach(function(d, i){
+      if (activeRoute !== 'all' && d.key !== activeRoute) return;
+      var pts = routeSpots(d).map(function(s){
+        var p = project(s.lat, s.lon, zoom);
+        return (p.x - frame.x) + ' ' + (p.y - frame.y);
+      });
+      if (pts.length < 2) return;
+      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M' + pts.join(' L'));
+      path.setAttribute('stroke', routeColor(i));
+      routesSvg.appendChild(path);
+    });
+  }
+
   function toggleVisit(id){
     if (visits[id]) delete visits[id];
     else visits[id] = Date.now();
     saveVisits();
     paintCounts();
     paintVisits();
+    paintRoutes();
     drawPins();
+    drawRoutes();
     if (activeId) openPop(activeId, false);
     if (!storageOK && !warned){
       warned = true;
@@ -697,16 +809,19 @@
     if (cl) cl.disabled = !n;
   }
 
-  function visitSummary(){
-    var ord = visitOrder(), lines = [], pad = function(n){ return (n < 10 ? '0' : '') + n; };
-    Object.keys(visits).sort(function(a, b){ return visits[a] - visits[b]; }).forEach(function(id){
-      var s = byId(id), d = new Date(visits[id]);
-      if (!s) return;
-      lines.push(ord[id] + '. ' + s.name + ' — ' + (d.getMonth() + 1) + '/' + d.getDate() +
-                 ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()));
+  function visitSummary(){                // 일차별로 묶어서 내보낸다
+    var lines = [], total = 0, pad = function(n){ return (n < 10 ? '0' : '') + n; };
+    routeDays().forEach(function(day, di){
+      lines.push((di + 1) + '일차 (' + day.label + ')');
+      day.ids.forEach(function(id, i){
+        var s = byId(id), d = new Date(visits[id]);
+        if (!s) return;
+        total++;
+        lines.push('  ' + (i + 1) + '. ' + s.name + ' — ' + pad(d.getHours()) + ':' + pad(d.getMinutes()));
+      });
     });
-    if (!lines.length) return '';
-    return '상하이 커피 지도 · 방문 기록 ' + lines.length + '곳\n' + lines.join('\n');
+    if (!total) return '';
+    return '상하이 커피 지도 · 방문 기록 ' + total + '곳\n' + lines.join('\n');
   }
 
   /* ───── 주소 옆 아이콘 액션 ───── */
@@ -741,11 +856,17 @@
     pinBox.innerHTML = '';
     pop = null;
     var pinOrd = visitOrder();
+    var routeIds = {};
+    if (activeRoute && activeRoute !== 'all'){
+      routeDays().forEach(function(d){
+        if (d.key === activeRoute) d.ids.forEach(function(id){ routeIds[id] = 1; });
+      });
+    }
     pinned().forEach(function(s){
       var p = project(s.lat, s.lon, zoom);
       var b = document.createElement('button');
       b.className = 'pin' + (s.fix === 'ok' ? '' : ' est') + (s.id === activeId ? ' on' : '') +
-                    (visits[s.id] ? ' visited' : '');
+                    (visits[s.id] ? ' visited' : '') + (routeIds[s.id] ? ' onroute' : '');
       b.dataset.pin = s.id;
       b.dataset.group = s.group;
       b.style.left = (p.x - frame.x) + 'px';
@@ -952,6 +1073,9 @@
   function fitAll(){
     var list = pinned().filter(function(s){ return !s.far; });
     if (!list.length) list = pinned();
+    fitTo(list);
+  }
+  function fitTo(list){                    // 주어진 장소들이 다 보이게 화면 맞춤
     if (!list.length) return;
     var lats = list.map(function(s){ return s.lat; }), lons = list.map(function(s){ return s.lon; });
     var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
@@ -1126,18 +1250,42 @@
     if (!txt) { toast('아직 기록된 방문이 없어요.'); return; }
     copyAddr(txt);
   });
+  /* 루트 칩: 누르면 그날 경로를 지도에 그리고 화면을 맞춘다. 다시 누르면 해제 */
+  rbar.addEventListener('click', function(e){
+    var step = e.target.closest('button[data-step]');
+    if (step){ select(step.dataset.step, false); return; }
+    var chip = e.target.closest('button[data-day]');
+    if (!chip) return;
+    var k = chip.dataset.day;
+    activeRoute = (activeRoute === k) ? null : k;
+    if (activeRoute && group !== 'all'){   // 루트는 카페·스팟을 넘나드니 전체 탭으로
+      var allBtn = tabs.querySelector('button[data-g="all"]');
+      if (allBtn) allBtn.click();
+    }
+    paintRoutes();
+    var days = routeDays(), show = [];
+    days.forEach(function(d){
+      if (activeRoute === 'all' || d.key === activeRoute) show = show.concat(routeSpots(d));
+    });
+    if (show.length) fitTo(show);          // fitTo → rebuild → drawRoutes
+    else { drawPins(); drawRoutes(); }
+  });
+
   document.getElementById('vclear').addEventListener('click', function(){
     if (!visitCount()) { toast('지울 기록이 없어요.'); return; }
     if (!window.confirm('방문 기록 ' + visitCount() + '곳을 모두 지울까요?')) return;
     visits = {};
     saveVisits();
     paintVisits();
+    paintRoutes();
     drawPins();
+    drawRoutes();
     if (activeId) openPop(activeId, false);
     toast('방문 기록을 지웠어요.');
   });
 
   paintCounts();      // 헤더·탭·범례·푸터의 숫자를 카드에서 채운다
+  paintRoutes();      // 저장된 방문 기록이 있으면 일차 칩을 바로 보여준다
   setLayout();
   fitAll();
   setTimeout(function(){ if (tileOk === 0 && tileFail === 0) queueFill(); }, 1200);
