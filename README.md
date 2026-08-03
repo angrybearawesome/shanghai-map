@@ -9,7 +9,18 @@
 ```
 public/index.html   ← 지도 본체. 이 파일만 고치면 됨
 wrangler.jsonc      ← 배포 설정 (건드릴 일 거의 없음)
+tools/verify.mjs    ← 자동 검증 (npm run verify / verify:live)
+.claude/skills/     ← Claude Code 명령어: /place /coords /verify
 ```
+
+Claude Code 명령어:
+
+| 명령 | 하는 일 |
+|---|---|
+| `/place 추가 <이름>` | 좌표 리서치 → 카드 작성 → 검증 → push까지 자동 |
+| `/place 삭제 <번호>` | 카드 제거 (번호 재정렬 없음 — 방문 기록 보호) |
+| `/coords 02` 또는 `전부` | 점선 핀·목록만 장소를 리서치해 확정 좌표로 승급 |
+| `/verify` | 로컬·라이브 자동 점검 (숫자 검산, 팝업, JS 오류, 배포 최신 여부) |
 
 ## 배포
 

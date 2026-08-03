@@ -77,14 +77,10 @@ description: >
 
 ## 검증 (생략 금지)
 
-1. 문법: `<script>` 블록을 `new Function()`으로 파싱해 JS 오류 없는지
-2. 렌더링: 로컬 서버 + puppeteer-core(스크래치패드에 설치돼 있음, Chrome 경로
-   `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`)로:
-   - 카드 수·핀 수가 기대값과 일치 (핀 = 카드 − nopin)
-   - 헤더 `N곳`, 탭, 범례 숫자가 채워짐 (`–`가 남아 있으면 실패)
-   - 새 카드 클릭 시 지도 이동 + 팝업 열림
-   - JS 오류 0건
-3. 새 핀이면 스크린샷으로 지도 배경 위 위치가 그럴듯한지 눈으로 확인
+1. `node tools/verify.mjs local` 실행 — 카드·핀 수, 숫자 채워짐, 팝업, JS 오류를
+   한 번에 검사한다 (의존성 없다는 오류가 나면 `npm install` 먼저)
+2. 새 핀이면 `tools/last-verify.png` 를 Read로 열어 지도 배경 위 위치가
+   그럴듯한지 눈으로 확인. 필요하면 새 카드를 클릭한 상태의 스크린샷을 따로 찍는다
 
 ## 커밋 & 배포
 
@@ -94,9 +90,9 @@ git commit  # 메시지: "장소 추가: NN 이름 (중문)" 형식, 본문에 �
 git push
 ```
 
-push 후 라이브 반영 확인 (보통 30초):
-`curl -s "https://shanghai-map-202608.6011bear.workers.dev/?cb=$RANDOM" | grep -c 'data-id="NN"'`
-15초 간격으로 최대 5분 폴링. 반영 안 되면 Cloudflare 대시보드 Deployments 확인을 안내.
+push 후 라이브 반영 확인 (보통 30초): `node tools/verify.mjs live`
+— "라이브 = 로컬 파일" 검사가 배포 최신 여부를 알려준다. 실패하면 15초 간격으로
+2~3번 재시도, 그래도 다르면 Cloudflare 대시보드 Deployments 확인을 안내.
 
 ## 보고
 

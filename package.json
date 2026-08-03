@@ -1,0 +1,14 @@
+{
+  "name": "shanghai-map",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "node tools/verify.mjs local",
+    "verify:live": "node tools/verify.mjs live",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.11.1",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -2,6 +2,9 @@ node_modules/
 .wrangler/
 .DS_Store
 
+# 검증 스크립트 산출물
+tools/last-verify.png
+
 # 로컬 전용 (토큰·도구 상태)
 .dev.vars
 .env
