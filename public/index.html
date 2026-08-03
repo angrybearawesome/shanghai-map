@@ -170,6 +170,14 @@
   .vtog svg{width:16px; height:16px; fill:none; stroke:#c3a45c; stroke-width:1.8; stroke-linejoin:round}
   .vtog.on{background:var(--gold-soft); border-color:var(--gold)}
   .vtog.on svg{fill:var(--gold); stroke:var(--gold-d)}
+  .vlist{display:flex; flex-direction:column; gap:4px}
+  .pop .vlist{margin-top:7px}
+  .vlist span{display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-size:11px; color:#8a6a1e; background:var(--gold-soft); border:1px solid #f0e3c0;
+    border-radius:8px; padding:4px 4px 4px 10px}
+  .vlist button{flex:0 0 auto; border:0; background:none; padding:2px 7px;
+    font-family:var(--sans); font-size:11px; font-weight:600; color:#a3701a; cursor:pointer;
+    text-decoration:underline; text-underline-offset:2px}
   .card[data-group="spot"] .ico, .pop[data-group="spot"] .ico{color:var(--teal); border-color:#b5ded9}
   .card[data-group="spot"] .ico.pri, .pop[data-group="spot"] .ico.pri{background:var(--teal); border-color:var(--teal); color:#fff}
   .c-desc{margin:0; font-size:13px; line-height:1.65; color:#455663}
@@ -471,7 +479,7 @@
         <b>핀 신뢰도</b> — 채워진 핀(<span class="ids" id="f-ok"></span>)은 등록된 주소·좌표로 찍었습니다. 점선 핀(<span class="ids" id="f-est"></span>)은 도로까지만 확인돼 수백 m 오차가 있을 수 있습니다. <span class="ids" id="f-off"></span>는 위치를 특정하지 못해 지도에 넣지 않고 목록에만 두었으니, 상호로 검색해서 찾아가세요.<br>
         <b>좌표계</b> — 중국 지도 기준(GCJ-02)이라 고덕지도·애플지도와는 맞고, 구글지도로 열면 조금 밀려 보일 수 있습니다.<br>
         <b>지도 배경</b> — 온라인일 때만 표시되고, 안 되면 격자 배경으로 바뀝니다. 핀·목록·주소 복사는 인터넷 없이도 동작합니다.<br>
-        <b>방문 기록</b> — 별을 누르면 방문한 순서대로 번호가 붙습니다. 기록은 이 브라우저에만 저장되니 친구 폰의 기록과는 따로 쌓입니다.<br>
+        <b>방문 기록</b> — 별을 누르면 방문한 순서대로 번호가 붙습니다. 같은 곳을 다른 날 또 가면 기록이 한 줄 더 쌓이고 번호가 3·9처럼 나란히 붙습니다(숙소처럼 매일 오가는 곳). 오늘 기록은 별을 다시 눌러 취소하고, 지난 날 기록은 카드나 팝업의 기록 줄에서 낱개로 취소합니다. 기록은 이 브라우저에만 저장되니 친구 폰의 기록과는 따로 쌓입니다.<br>
         <b>일일 루트</b> — 방문한 날짜별로 기록 바 아래 1일차·2일차 칩이 생기고, 누르면 그날 다닌 순서가 지도에 점선으로 이어집니다. 점선은 방문 순서를 이은 직선일 뿐 실제 걷거나 탄 경로는 아닙니다. 새벽 4시 전의 방문은 전날 루트로 칩니다.
       </div>
     </details>
@@ -670,26 +678,52 @@
   }
 
   /* ───── 방문 기록 ─────
-     저장은 {장소id: 누른시각}만. 순서는 시각을 정렬해서 매번 계산하므로
-     중간을 취소해도 번호가 자동으로 당겨진다. */
-  var VKEY = 'shcafemap.visits.v1';
-  var visits = {}, storageOK = true, warned = false;
+     저장은 방문 이벤트 목록 [{id, ts}]. 같은 곳을 다른 날 또 가면 이벤트가
+     한 줄 더 쌓인다 (숙소처럼 매일 오가는 곳). 순번·루트는 매번 계산하므로
+     중간을 취소해도 번호가 자동으로 당겨진다.
+     별은 '오늘' 기준 토글: 오늘 기록이 있으면 취소, 없으면 새로 기록.
+     지난 날 기록은 카드·팝업의 기록 줄에서 낱개로 취소한다. */
+  var VKEY = 'shcafemap.visits.v2';
+  var VKEY_OLD = 'shcafemap.visits.v1';
+  var visits = [], storageOK = true, warned = false;
   var STAR = '<svg viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.35 5.9.86-4.25 4.15 1 5.88L12 17.05 6.75 19.8l1-5.88L3.5 9.81l5.9-.86z"/></svg>';
 
-  try { var raw = localStorage.getItem(VKEY); if (raw) visits = JSON.parse(raw) || {}; }
-  catch (e) { storageOK = false; }
+  try {
+    var raw = localStorage.getItem(VKEY);
+    if (raw){ visits = JSON.parse(raw) || []; }
+    else {
+      var old = localStorage.getItem(VKEY_OLD);      // v1 {id:시각} → v2 이벤트 목록 이관
+      if (old){
+        var o = JSON.parse(old) || {};
+        visits = Object.keys(o).map(function(id){ return { id:id, ts:o[id] }; });
+        localStorage.setItem(VKEY, JSON.stringify(visits));
+        localStorage.removeItem(VKEY_OLD);
+      }
+    }
+    visits.sort(function(a, b){ return a.ts - b.ts; });
+  } catch (e) { storageOK = false; }
 
   function saveVisits(){
     try { localStorage.setItem(VKEY, JSON.stringify(visits)); }
     catch (e) { storageOK = false; }
   }
-  function visitOrder(){
-    var ids = Object.keys(visits).sort(function(a, b){ return visits[a] - visits[b]; });
+  function visitsOf(id){ return visits.filter(function(v){ return v.id === id; }); }
+  function todayVisitIndex(id){           // 오늘(새벽4시 경계) 기록의 인덱스, 없으면 -1
+    var k = dayKeyOf(Date.now());
+    for (var i = visits.length - 1; i >= 0; i--)
+      if (visits[i].id === id && dayKeyOf(visits[i].ts) === k) return i;
+    return -1;
+  }
+  function visitOrder(){                  // id → [전체 방문 순번들] (재방문이면 여러 개)
     var map = {};
-    ids.forEach(function(id, i){ map[id] = i + 1; });
+    visits.forEach(function(v, i){ (map[v.id] = map[v.id] || []).push(i + 1); });
     return map;
   }
-  function visitCount(){ return Object.keys(visits).length; }
+  function visitCount(){                  // 방문한 '곳' 수 (기록 건수와는 다를 수 있다)
+    var seen = {}, n = 0;
+    visits.forEach(function(v){ if (!seen[v.id]){ seen[v.id] = 1; n++; } });
+    return n;
+  }
 
   /* ───── 일일 루트 ─────
      방문 시각을 날짜로 묶으면 하루치 경로가 된다. 저장은 여전히 visits 하나뿐이고
@@ -707,17 +741,17 @@
     var d = new Date(ts - 4 * 3600 * 1000);
     return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
   }
-  function routeDays(){                   // [{key, label, ids(방문순)}] 날짜순
-    var ids = Object.keys(visits).sort(function(a, b){ return visits[a] - visits[b]; });
+  function routeDays(){                   // [{key, label, ids, evs}] 날짜순. evs=방문 이벤트
     var days = [], byKey = {};
-    ids.forEach(function(id){
-      var k = dayKeyOf(visits[id]);
+    visits.forEach(function(v){           // visits는 시각순으로 유지된다
+      var k = dayKeyOf(v.ts);
       if (!byKey[k]){
-        var d = new Date(visits[id] - 4 * 3600 * 1000);
-        byKey[k] = { key:k, label:(d.getMonth() + 1) + '/' + d.getDate(), ids:[] };
+        var d = new Date(v.ts - 4 * 3600 * 1000);
+        byKey[k] = { key:k, label:(d.getMonth() + 1) + '/' + d.getDate(), ids:[], evs:[] };
         days.push(byKey[k]);
       }
-      byKey[k].ids.push(id);
+      byKey[k].ids.push(v.id);
+      byKey[k].evs.push(v);
     });
     return days;
   }
@@ -773,48 +807,77 @@
     });
   }
 
-  function toggleVisit(id){
-    if (visits[id]) delete visits[id];
-    else visits[id] = Date.now();
-    saveVisits();
-    paintCounts();
+  function refreshVisitUI(){
     paintVisits();
     paintRoutes();
     drawPins();
     drawRoutes();
     if (activeId) openPop(activeId, false);
+  }
+  function toggleVisit(id){
+    var i = todayVisitIndex(id);
+    if (i >= 0) visits.splice(i, 1);           // 오늘 기록은 다시 누르면 취소
+    else visits.push({ id:id, ts:Date.now() }); // 지난 날 기록이 있어도 새로 쌓인다
+    saveVisits();
+    refreshVisitUI();
     if (!storageOK && !warned){
       warned = true;
       toast('이 환경에서는 기록이 저장되지 않아요. 새로고침하면 사라집니다.');
     }
   }
+  function unvisit(id, ts){                    // 기록 줄의 '취소' — 지난 날 기록 낱개 삭제
+    for (var i = 0; i < visits.length; i++){
+      if (visits[i].id === id && visits[i].ts === ts){ visits.splice(i, 1); break; }
+    }
+    saveVisits();
+    refreshVisitUI();
+  }
+  function vlistHTML(id){                      // 방문 기록 줄 (카드·팝업 공용)
+    var evs = visitsOf(id);
+    if (!evs.length) return '';
+    var days = routeDays();
+    return '<div class="vlist">' + evs.map(function(v){
+      var k = dayKeyOf(v.ts), di = 0;
+      for (var i = 0; i < days.length; i++) if (days[i].key === k) di = i;
+      var idx = days[di].evs.indexOf(v) + 1;
+      return '<span>' + (di + 1) + '일차 ' + days[di].label + ' · ' + idx + '번째 방문' +
+             '<button data-act="unvisit" data-vts="' + v.ts + '">취소</button></span>';
+    }).join('') + '</div>';
+  }
 
-  function paintVisits(){                 // 카드 별표 + 순서 + 카운터
+  function paintVisits(){                 // 카드 별표 + 순번 + 기록 줄 + 카운터
     var ord = visitOrder();
     cards.forEach(function(c){
-      var id = c.dataset.id, on = !!visits[id];
-      c.classList.toggle('visited', on);
+      var id = c.dataset.id, nums = ord[id] || [];
+      c.classList.toggle('visited', nums.length > 0);
       var btn = c.querySelector('.star');
       if (btn){
-        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-        btn.title = on ? ord[id] + '번째 방문 · 다시 누르면 취소' : '방문 기록하기';
-        btn.querySelector('.ord').textContent = on ? ord[id] : '';
+        var today = todayVisitIndex(id) >= 0;
+        btn.setAttribute('aria-pressed', today ? 'true' : 'false');
+        btn.title = today ? '오늘 방문함 · 다시 누르면 취소'
+                  : nums.length ? '다시 방문 기록하기 (' + nums.length + '회 방문)'
+                  : '방문 기록하기';
+        btn.querySelector('.ord').textContent = nums.join('·');
       }
+      var old = c.querySelector('.vlist');
+      if (old) old.parentNode.removeChild(old);
+      var rows = vlistHTML(id);
+      if (rows) c.insertAdjacentHTML('beforeend', rows);
     });
     var n = visitCount();
     var cnt = document.getElementById('vcount');
     if (cnt) cnt.textContent = n;
     var ex = document.getElementById('vexport'), cl = document.getElementById('vclear');
-    if (ex) ex.disabled = !n;
-    if (cl) cl.disabled = !n;
+    if (ex) ex.disabled = !visits.length;
+    if (cl) cl.disabled = !visits.length;
   }
 
   function visitSummary(){                // 일차별로 묶어서 내보낸다
     var lines = [], total = 0, pad = function(n){ return (n < 10 ? '0' : '') + n; };
     routeDays().forEach(function(day, di){
       lines.push((di + 1) + '일차 (' + day.label + ')');
-      day.ids.forEach(function(id, i){
-        var s = byId(id), d = new Date(visits[id]);
+      day.evs.forEach(function(v, i){
+        var s = byId(v.id), d = new Date(v.ts);
         if (!s) return;
         total++;
         lines.push('  ' + (i + 1) + '. ' + s.name + ' — ' + pad(d.getHours()) + ':' + pad(d.getMinutes()));
@@ -866,12 +929,13 @@
       var p = project(s.lat, s.lon, zoom);
       var b = document.createElement('button');
       b.className = 'pin' + (s.fix === 'ok' ? '' : ' est') + (s.id === activeId ? ' on' : '') +
-                    (visits[s.id] ? ' visited' : '') + (routeIds[s.id] ? ' onroute' : '');
+                    (pinOrd[s.id] ? ' visited' : '') + (routeIds[s.id] ? ' onroute' : '');
       b.dataset.pin = s.id;
       b.dataset.group = s.group;
       b.style.left = (p.x - frame.x) + 'px';
       b.style.top = (p.y - frame.y) + 'px';
-      b.innerHTML = '<i><em>' + s.id + '</em></i><span class="ord">' + (pinOrd[s.id] || '') + '</span><b></b>';
+      b.innerHTML = '<i><em>' + s.id + '</em></i><span class="ord">' +
+                    (pinOrd[s.id] || []).join('·') + '</span><b></b>';
       b.querySelector('b').textContent = s.name.replace(/\s*\(.*/, '');
       b.addEventListener('click', function(e){ e.stopPropagation(); select(s.id, true); });
       pinBox.appendChild(b);
@@ -896,8 +960,14 @@
       '<div class="addr-row" style="margin-top:8px"><div class="c-addr">' +
         '<span class="a-txt"></span></div>' + actionsFor(s) + '</div>' +
       '<p></p>' +
-      '<button class="vtog' + (visits[s.id] ? ' on' : '') + '" data-act="visit">' + STAR +
-        '<span>' + (visits[s.id] ? visitOrder()[s.id] + '번째로 방문함 · 취소' : '방문 기록하기') + '</span></button>';
+      (function(){
+        var today = todayVisitIndex(s.id) >= 0, n = visitsOf(s.id).length;
+        var label = today ? '오늘 방문함 · 다시 누르면 취소'
+                  : n ? '다시 방문 기록하기 (' + n + '회 방문)'
+                  : '방문 기록하기';
+        return '<button class="vtog' + (today ? ' on' : '') + '" data-act="visit">' + STAR +
+               '<span>' + label + '</span></button>' + vlistHTML(s.id);
+      })();
     pop.querySelector('h3').textContent = s.id + '. ' + s.name;
     pop.querySelector('.c-tag').textContent = s.tag;
     pop.querySelector('.a-txt').textContent = s.addr + (s.flag ? ' · ' + s.flag : '');
@@ -1026,6 +1096,7 @@
       if (!s) return;
       e.preventDefault();
       if (a === 'visit') toggleVisit(s.id);
+      else if (a === 'unvisit') unvisit(s.id, +act.dataset.vts);
       else if (a === 'amap') openAmap(s);
       else if (a === 'copy') copyAddr(s.addr);
       else if (a === 'search') openUrl(amapSearch(s));
@@ -1272,15 +1343,11 @@
   });
 
   document.getElementById('vclear').addEventListener('click', function(){
-    if (!visitCount()) { toast('지울 기록이 없어요.'); return; }
-    if (!window.confirm('방문 기록 ' + visitCount() + '곳을 모두 지울까요?')) return;
-    visits = {};
+    if (!visits.length) { toast('지울 기록이 없어요.'); return; }
+    if (!window.confirm('방문 기록 ' + visits.length + '건을 모두 지울까요?')) return;
+    visits = [];
     saveVisits();
-    paintVisits();
-    paintRoutes();
-    drawPins();
-    drawRoutes();
-    if (activeId) openPop(activeId, false);
+    refreshVisitUI();
     toast('방문 기록을 지웠어요.');
   });
 

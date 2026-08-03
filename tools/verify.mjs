@@ -111,6 +111,33 @@ if (dom.firstPinnedId) {
     (document.querySelector('.pop') || { dataset: {} }).dataset.for);
   check('카드 클릭 → 팝업', popFor === dom.firstPinnedId, `pop=${popFor}`);
 }
+/* ── 4. 방문 기록·일일 루트 스모크 (이틀치 + 재방문 주입) ── */
+await page.evaluate(() => {
+  const day = 86400e3, base = new Date(); base.setHours(12, 0, 0, 0);
+  const t = +base;
+  localStorage.setItem('shcafemap.visits.v2', JSON.stringify([
+    { id: '01', ts: t - day - 2 * 3600e3 },
+    { id: '13', ts: t - day + 9 * 3600e3 },
+    { id: '01', ts: t - 3600e3 },            // 재방문
+    { id: '12', ts: t },
+  ]));
+});
+await page.reload({ waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+await page.evaluate(() => document.querySelector('.rday[data-day]').click());
+await new Promise(r => setTimeout(r, 800));
+const rt = await page.evaluate(() => ({
+  chips: document.querySelectorAll('.rday').length,
+  paths: document.querySelectorAll('#routes path').length,
+  badge: (document.querySelector('.card[data-id="01"] .star .ord') || {}).textContent,
+  rows: document.querySelectorAll('.card[data-id="01"] .vlist span').length,
+}));
+check('루트: 일차 칩 (2일+전체)', rt.chips === 3, String(rt.chips));
+check('루트: 선 그려짐', rt.paths === 1, String(rt.paths));
+check('재방문: 순번 병기', /·/.test(rt.badge || ''), rt.badge);
+check('재방문: 기록 줄 2개', rt.rows === 2, String(rt.rows));
+await page.evaluate(() => localStorage.clear());
+
 check('JS 오류 없음', jsErrors.length === 0, jsErrors.slice(0, 2).join('; '));
 
 const shot = path.join(ROOT, 'tools', 'last-verify.png');
