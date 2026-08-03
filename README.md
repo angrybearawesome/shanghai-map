@@ -26,7 +26,11 @@ git push
 
 ## 장소 추가하는 법
 
-`public/index.html`에서 `<main id="list">` 안의 카드 한 덩이를 복사해 값만 바꿉니다.
+**Claude Code를 쓰면**: `/place 추가 우캉맨션` 처럼 말하면 끝. 좌표 리서치부터
+카드 작성·검증·push까지 자동으로 처리한다 (`.claude/skills/place/SKILL.md`).
+삭제는 `/place 삭제 17`.
+
+**손으로 하려면**: `public/index.html`에서 `<main id="list">` 안의 카드 한 덩이를 복사해 값만 바꿉니다.
 지도 핀과 아이콘은 JS가 이 속성들을 읽어서 자동으로 만들어 주므로, 따로 손댈 곳이 없습니다.
 
 ```html
