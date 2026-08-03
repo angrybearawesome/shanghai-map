@@ -10,12 +10,16 @@ wrangler.jsonc      ← 배포 설정 (건드릴 일 거의 없음)
 
 ## 배포
 
-git 연동을 했으면 `main`에 push하면 자동 배포됩니다.
-CLI로 직접 올리려면:
+Cloudflare Workers의 Git 연동을 써서, `main`에 push하면 자동 배포됩니다.
 
 ```
-npx wrangler deploy
+git add -A
+git commit -m "장소 추가"
+git push
 ```
+
+배포 상황은 Cloudflare 대시보드 → Workers & Pages → shanghai-map-202608 → Deployments에서 봅니다.
+연동 없이 CLI로 직접 올리려면 `npx wrangler deploy`.
 
 ## 장소 추가하는 법
 
@@ -50,7 +54,8 @@ npx wrangler deploy
 주소 밑에 경고 배지를 붙이려면 `a-txt` 뒤에 `<span class="flag">좌표 근사</span>`를 넣습니다.
 
 카드만 추가하면 끝입니다. 헤더의 `N곳`, 문서 제목, 탭 라벨(`전체 15`), 범례 숫자,
-기록 바의 분모, 그룹 헤더 범위, 푸터의 번호 목록은 모두 카드에서 계산되므로 손댈 필요가 없습니다.
+헤더 안내문의 '주소를 확인하지 못한 N곳', 기록 바의 분모, 그룹 헤더 범위,
+푸터의 번호 목록은 모두 카드에서 계산되므로 손댈 필요가 없습니다.
 푸터 번호는 숫자순으로 정렬되고, 그룹 번호가 연속이 아니면 범위 대신 개수로 표시됩니다.
 
 ## 방문 기록

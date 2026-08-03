@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#17293b">
 <title>상하이 커피 지도</title>
+<!-- 파비콘도 인라인. 외부 파일 없이 단일 HTML을 유지한다 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2317293b'/%3E%3Cpath d='M16 6a7 7 0 0 0-7 7c0 5 7 12 7 12s7-7 7-12a7 7 0 0 0-7-7z' fill='%232b7de9'/%3E%3Ccircle cx='16' cy='13' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#f4f7fa; --surface:#ffffff;
@@ -250,7 +252,7 @@
   <header>
     <h1>상하이 커피 지도 <span>· <b id="n-all">–</b>곳</span></h1>
     <p class="sub" id="subline">SHANGHAI · SUZHOU · WUXI</p>
-    <p class="tip">핀이나 카드를 누르면 지도가 움직여요. 주소를 확인하지 못한 5곳은 지도에 없고 목록에만 있으니 <b>고덕에서 이름 검색</b>을 쓰세요. 주소 오른쪽 아이콘은 <b>지도에서 열기 · 이름으로 검색 · 주소 복사</b>입니다. 앱이 안 열리면 주소를 복사해 고덕지도(高德地图) 검색창에 붙여넣는 게 가장 확실합니다.</p>
+    <p class="tip">핀이나 카드를 누르면 지도가 움직여요. 주소를 확인하지 못한 <b id="t-off">–</b>곳은 지도에 없고 목록에만 있으니 <b>고덕에서 이름 검색</b>을 쓰세요. 주소 오른쪽 아이콘은 <b>지도에서 열기 · 이름으로 검색 · 주소 복사</b>입니다. 앱이 안 열리면 주소를 복사해 고덕지도(高德地图) 검색창에 붙여넣는 게 가장 확실합니다.</p>
   </header>
 
   <nav id="tabs">
@@ -414,7 +416,7 @@
         <b>방문 기록</b> — 별을 누르면 방문한 순서대로 번호가 붙습니다. 기록은 이 브라우저에만 저장되니 친구 폰의 기록과는 따로 쌓입니다.
       </div>
     </details>
-    <span class="sig">CAFE MAP · SINGLE FILE · NO API KEY · BUILD 2026-08-03 v4</span>
+    <span class="sig">CAFE MAP · SINGLE FILE · NO API KEY</span>
   </footer>
 </div>
 
@@ -578,6 +580,7 @@
     put('n-ok', byBucket.ok.length);
     put('n-est', byBucket.est.length);
     put('n-off', byBucket.off.length);
+    put('t-off', byBucket.off.length);
     put('f-ok', idsOf(byBucket.ok));
     put('f-est', idsOf(byBucket.est));
     put('f-off', idsOf(byBucket.off));
@@ -633,7 +636,7 @@
     else visits[id] = Date.now();
     saveVisits();
     paintCounts();
-  paintVisits();
+    paintVisits();
     drawPins();
     if (activeId) openPop(activeId, false);
     if (!storageOK && !warned){
@@ -1102,6 +1105,7 @@
     toast('방문 기록을 지웠어요.');
   });
 
+  paintCounts();      // 헤더·탭·범례·푸터의 숫자를 카드에서 채운다
   setLayout();
   fitAll();
   setTimeout(function(){ if (tileOk === 0 && tileFail === 0) queueFill(); }, 1200);
