@@ -1,7 +1,10 @@
 # 상하이 커피 지도
 
 단일 HTML 파일로 된 개인용 지도. 외부 라이브러리·API 키 없음.
-배포: Cloudflare Workers (정적 assets) → https://shanghai-map-202608.6011bear.workers.dev/
+
+- 사이트: https://shanghai-map-202608.6011bear.workers.dev/
+- 저장소: https://github.com/angrybearawesome/shanghai-map
+- 배포: Cloudflare Workers 정적 assets (`main` push → 자동 빌드)
 
 ```
 public/index.html   ← 지도 본체. 이 파일만 고치면 됨
