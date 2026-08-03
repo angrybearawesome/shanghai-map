@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#17293b">
+<title>상하이 커피 지도</title>
+<style>
+  :root{
+    --bg:#f4f7fa; --surface:#ffffff;
+    --ink:#1b2733; --mut:#6b7c8c; --line:#e3eaf1; --line-2:#eef3f8;
+    --navy:#17293b; --navy-2:#0f1e2c;
+    --blue:#2b7de9; --blue-d:#1a5fbd; --blue-soft:#eaf2fd;
+    --teal:#0e9f96; --teal-d:#0a7b74; --teal-soft:#e3f5f3;
+    --warn:#a3701a; --warn-soft:#fdf5e4;
+    --gold:#f2b21a; --gold-d:#b5810a; --gold-soft:#fff7e6;
+    --sans:-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', Roboto, 'Noto Sans KR', sans-serif;
+    --mono:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; padding:0}
+  body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.55;
+       -webkit-text-size-adjust:100%; overflow-x:hidden}
+
+  /* ── 헤더 ── */
+  header{background:var(--navy); color:#e9f0f7; padding:16px 16px 15px; border-bottom:3px solid var(--blue)}
+  header h1{margin:0; font-size:18.5px; font-weight:700; letter-spacing:-.3px}
+  header h1 span{color:#7fb4f5; font-weight:500}
+  header .sub{margin:5px 0 0; font-family:var(--mono); font-size:10px; letter-spacing:.07em; opacity:.62}
+  .tip{margin:12px 0 0; background:rgba(255,255,255,.07); border-left:3px solid var(--blue);
+       border-radius:0 9px 9px 0; padding:9px 11px; font-size:12px; line-height:1.55; color:#d7e4f1}
+  .tip b{color:#fff}
+
+  /* ── 탭 ── */
+  #tabs{display:flex; background:var(--surface); border-bottom:1px solid var(--line)}
+  #tabs button{flex:1; appearance:none; border:0; background:none; cursor:pointer; padding:13px 4px;
+    font-family:var(--sans); font-size:12.5px; font-weight:600; color:#8395a3; transition:color .15s}
+  #tabs button[aria-selected="true"]{color:var(--blue); box-shadow:inset 0 -2.5px 0 var(--blue)}
+
+  /* ── 범례 ── */
+  .legend{display:flex; gap:13px; align-items:center; justify-content:center; padding:9px 10px;
+    background:#eaf0f6; border-bottom:1px solid var(--line); font-size:10.5px; color:#5f7183}
+  .legend s{text-decoration:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap}
+  .legend s:before{content:''; width:10px; height:10px; border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg); background:var(--blue)}
+  .legend s.est:before{background:#fff; border:1.5px dashed var(--blue)}
+  .legend s.off:before{width:12px; height:0; border-radius:0; transform:none;
+    border-top:2px dotted #93a4b3; background:none}
+  .legend s.vis{color:var(--gold-d); font-weight:600}
+  .legend s.vis:before{background:var(--gold); border-radius:50%; transform:none}
+  .legend s.vis b{font-family:var(--mono)}
+
+  /* ── 지도 ── */
+  #mapbox{position:sticky; top:0; z-index:20; background:var(--bg)}
+  #map{position:relative; height:42vh; min-height:270px; overflow:hidden; background:#e8eef4;
+       touch-action:none; cursor:grab; border-bottom:1px solid var(--line);
+       user-select:none; -webkit-user-select:none}
+  #map .c-addr .a-txt{user-select:all; -webkit-user-select:all}
+  #map.nomap{background-image:linear-gradient(#dde5ed 1px,transparent 1px),linear-gradient(90deg,#dde5ed 1px,transparent 1px);
+    background-size:26px 26px}
+  #layer{position:absolute; top:0; left:0; will-change:transform; transform-origin:0 0}
+  #tiles img{position:absolute; width:257px; height:257px; opacity:0; transition:opacity .3s}
+  #tiles img.on{opacity:1}
+  #pins{position:absolute; top:0; left:0}
+
+  .pin{position:absolute; width:0; height:0; padding:0; margin:0; border:0; background:none; cursor:pointer}
+  .pin i{position:absolute; left:-13px; top:-30px; width:26px; height:26px; border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg); background:var(--blue); color:#fff; border:2px solid #fff;
+    box-shadow:0 2px 7px rgba(23,41,59,.32); display:flex; align-items:center; justify-content:center;
+    font-style:normal; transition:transform .15s, background .15s}
+  .pin i em{font-style:normal; font-family:var(--mono); font-size:11px; font-weight:600; transform:rotate(45deg)}
+  .pin[data-group="spot"] i{background:var(--teal)}
+  .pin.est i{background:#fff; color:var(--blue); border:2px dashed var(--blue); box-shadow:0 1px 5px rgba(23,41,59,.2)}
+  .pin[data-group="spot"].est i{color:var(--teal); border-color:var(--teal)}
+  .pin.on i{background:var(--blue-d); color:#fff; border-style:solid; transform:rotate(-45deg) scale(1.18)}
+  .pin[data-group="spot"].on i{background:var(--teal-d)}
+  .pin.on{z-index:6}
+  .pin b{position:absolute; left:15px; top:-26px; display:none; white-space:nowrap; font-size:11px; font-weight:600;
+    background:rgba(255,255,255,.94); color:#2c3d4c; padding:2px 7px; border-radius:5px;
+    box-shadow:0 1px 4px rgba(23,41,59,.18)}
+  #layer.near .pin b{display:block}
+  .pin.visited i{background:var(--gold); color:#5a3d05; border-color:#fff}
+  .pin.visited.est i{background:var(--gold-soft); color:var(--gold-d); border-color:var(--gold)}
+  .pin .ord{position:absolute; left:6px; top:-39px; display:none; min-width:16px; height:16px; padding:0 3px;
+    border-radius:9px; background:var(--gold-d); color:#fff; border:1.5px solid #fff;
+    font-family:var(--mono); font-size:9.5px; font-weight:700; line-height:13px; text-align:center;
+    box-shadow:0 1px 3px rgba(23,41,59,.3)}
+  .pin.visited .ord{display:block}
+
+  .pop{position:absolute; width:270px; transform:translate(-50%,calc(-100% - 42px)); z-index:30;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 14px 12px;
+    box-shadow:0 12px 34px rgba(23,41,59,.2); animation:rise .18s ease-out}
+  @keyframes rise{from{opacity:0; transform:translate(-50%,calc(-100% - 32px))}}
+  .pop:after{content:''; position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px;
+    background:var(--surface); border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+    transform:rotate(45deg)}
+  .pop h3{margin:0 22px 5px 0; font-size:14.5px; font-weight:700; line-height:1.35; letter-spacing:-.2px}
+  .pop .x{position:absolute; top:6px; right:6px; width:26px; height:26px; border:0; background:none;
+    color:#9aabb8; font-size:15px; cursor:pointer; border-radius:8px}
+  .pop p{margin:9px 0 0; font-size:12px; line-height:1.55; color:var(--mut);
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+
+  .mapctl{position:absolute; right:11px; bottom:11px; display:flex; flex-direction:column; gap:7px; z-index:40}
+  .mapctl button{width:38px; height:38px; border:1px solid var(--line); border-radius:11px;
+    background:rgba(255,255,255,.95); font-family:var(--mono); font-size:16px; color:#3c5f8a; cursor:pointer;
+    box-shadow:0 2px 8px rgba(23,41,59,.14)}
+  .mapctl button.wide{font-size:10.5px; font-weight:600; letter-spacing:.02em}
+  #scale{position:absolute; left:11px; bottom:13px; z-index:40; font-family:var(--mono); font-size:10px;
+    color:#41576b; background:rgba(255,255,255,.86); padding:3px 7px; border-radius:6px}
+  #scale span{display:block; height:4px; border:1px solid #6c8095; border-top:0; margin-top:2px}
+  #maperr{position:absolute; inset:auto 12px 12px 12px; z-index:35; background:rgba(255,255,255,.96);
+    border:1px solid var(--line); border-left:3px solid #e3a008; border-radius:10px; padding:9px 11px;
+    font-size:12px; color:var(--mut); display:none}
+  #map.nomap #maperr{display:block}
+  #map.nomap #scale{display:none}
+
+  /* ── 목록 ── */
+  #list{padding:13px 12px 8px}
+  .grouphead{display:flex; align-items:center; gap:8px; margin:6px 3px 11px}
+  .grouphead h2{margin:0; font-size:14px; font-weight:700; letter-spacing:-.2px}
+  .grouphead span{font-family:var(--mono); font-size:10px; color:#93a4b3; letter-spacing:.05em}
+  .grouphead:after{content:''; flex:1; height:1px; background:var(--line)}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:14px;
+    margin:0 0 10px; cursor:pointer; scroll-margin-top:46vh; transition:border-color .15s, box-shadow .15s}
+  .card > * + *{margin-top:9px}
+  .card:hover{border-color:#c6dbf6}
+  .card.on{border-color:var(--blue); box-shadow:0 0 0 3px rgba(43,125,233,.11)}
+  .c-head{display:flex; gap:11px; align-items:flex-start}
+  .c-title{flex:1; min-width:0}
+  .idx{flex:0 0 auto; width:32px; height:32px; border-radius:10px; background:var(--blue-soft);
+    color:var(--blue); font-family:var(--mono); font-size:12px; font-weight:600;
+    display:flex; align-items:center; justify-content:center}
+  .card[data-group="spot"] .idx{background:var(--teal-soft); color:var(--teal)}
+  .card[data-nopin] .idx{background:#f1f5f9; color:#8e9eac; box-shadow:inset 0 0 0 1px #dfe7ee}
+  .c-name{margin:0; font-size:15.5px; font-weight:700; line-height:1.35; letter-spacing:-.3px}
+  .c-tag{display:inline-block; margin-top:5px; font-size:11px; font-weight:600; color:var(--blue);
+    background:var(--blue-soft); padding:3px 8px; border-radius:20px}
+  .card[data-group="spot"] .c-tag{color:var(--teal); background:var(--teal-soft)}
+  .star{flex:0 0 auto; display:flex; align-items:center; gap:4px; padding:3px 5px 3px 7px; margin:-3px -3px 0 0;
+    border:0; background:none; cursor:pointer; border-radius:9px}
+  .star svg{width:22px; height:22px; fill:none; stroke:#c3cdd6; stroke-width:1.8;
+    stroke-linejoin:round; transition:fill .15s, stroke .15s, transform .12s}
+  .star .ord{font-family:var(--mono); font-size:11px; font-weight:700; color:var(--gold-d)}
+  .star:active svg{transform:scale(.88)}
+  .card.visited{border-color:#f1dcab; background:#fffdf7}
+  .card.visited .star svg{fill:var(--gold); stroke:var(--gold-d)}
+  .card.visited .idx{background:var(--gold-soft); color:var(--gold-d); box-shadow:none}
+  .addr-row{display:flex; align-items:center; gap:6px}
+  .c-addr{flex:1; min-width:0; font-size:12.5px; color:#4f6272; background:#f6f9fc;
+    border:1px solid var(--line-2); border-radius:9px; padding:7px 9px; word-break:break-all}
+  .c-addr .a-txt{user-select:all; -webkit-user-select:all}
+  .flag{display:inline-block; font-size:10px; font-weight:600; color:var(--warn); background:var(--warn-soft);
+    border:1px solid #f0e0bb; border-radius:20px; padding:1px 7px; margin-left:5px; user-select:none}
+  .ico{flex:0 0 auto; width:34px; height:34px; padding:0; border-radius:10px; border:1px solid #cfdcec;
+    background:#fff; color:var(--blue); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:transform .1s, background .15s}
+  .ico svg{width:17px; height:17px}
+  .ico.pri{background:var(--blue); border-color:var(--blue); color:#fff; box-shadow:0 1px 3px rgba(26,95,189,.26)}
+  .ico:active{transform:scale(.93)}
+  .pop .addr-row{gap:5px}
+  .pop .ico{width:30px; height:30px; border-radius:9px}
+  .pop .ico svg{width:16px; height:16px}
+  .pop .c-addr{font-size:12px; padding:6px 8px}
+  .vtog{display:flex; align-items:center; justify-content:center; gap:6px; width:100%; margin-top:9px;
+    padding:8px 0; border:1px solid #e6dcc4; border-radius:9px; background:#fffdf6; cursor:pointer;
+    font-family:var(--sans); font-size:12px; font-weight:600; color:#8a6a1e}
+  .vtog svg{width:16px; height:16px; fill:none; stroke:#c3a45c; stroke-width:1.8; stroke-linejoin:round}
+  .vtog.on{background:var(--gold-soft); border-color:var(--gold)}
+  .vtog.on svg{fill:var(--gold); stroke:var(--gold-d)}
+  .card[data-group="spot"] .ico, .pop[data-group="spot"] .ico{color:var(--teal); border-color:#b5ded9}
+  .card[data-group="spot"] .ico.pri, .pop[data-group="spot"] .ico.pri{background:var(--teal); border-color:var(--teal); color:#fff}
+  .c-desc{margin:0; font-size:13px; line-height:1.65; color:#455663}
+  .c-desc b{color:var(--ink)}
+  .row{display:flex; gap:8px}
+  .btn{flex:1 1 46%; appearance:none; border:0; border-radius:10px; padding:10px 8px; font-family:var(--sans);
+    font-size:13px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:block}
+  .btn.go{background:var(--blue); color:#fff; box-shadow:0 1px 3px rgba(26,95,189,.28)}
+  .btn.go:active{background:var(--blue-d)}
+  .card[data-group="spot"] .btn.go{background:var(--teal); box-shadow:0 1px 3px rgba(10,123,116,.26)}
+  .card[data-group="spot"] .btn.go:active{background:var(--teal-d)}
+  .btn.cp{background:#fff; color:#37587f; border:1px solid #ccdcec}
+  .btn.cp:active{background:#f2f6fb}
+  .links{display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px}
+  .links a{white-space:nowrap}
+  .links a{color:#8093a2; text-decoration:underline; text-underline-offset:2px}
+
+  footer{padding:10px 14px 30px; font-size:11px; color:#8896a3; line-height:1.6}
+  footer details summary{cursor:pointer; font-size:11px; font-weight:600; color:#7b8b99;
+    list-style:none; padding:7px 0; display:flex; align-items:center; gap:6px}
+  footer details summary::-webkit-details-marker{display:none}
+  footer details summary:before{content:'＋'; font-family:var(--mono); color:#a9b6c1}
+  footer details[open] summary:before{content:'－'}
+  footer .fnote{padding:2px 0 4px}
+  footer .ids{font-family:var(--mono); font-size:10px; color:#7a8794}
+  footer b{color:#5c6b78; font-weight:600}
+  footer .sig{display:block; margin-top:6px; font-family:var(--mono); font-size:9px; color:#b3bfc9; letter-spacing:.05em}
+
+  #recbar{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 12px;
+    background:var(--gold-soft); border-bottom:1px solid #f2e5c8; font-size:11.5px; color:#8a6a1e}
+  #recbar .rlabel{display:inline-flex; align-items:center; gap:6px; font-weight:600}
+  #recbar .rlabel:before{content:''; width:10px; height:10px; border-radius:50%; background:var(--gold)}
+  #recbar b{font-family:var(--mono); font-size:12px}
+  .ract{display:flex; gap:6px}
+  .rbtn{padding:5px 12px; border-radius:8px; border:1px solid #e6d6ab; background:#fff; color:#8a6a1e;
+    font-family:var(--sans); font-size:11.5px; font-weight:600; cursor:pointer}
+  .rbtn.ghost{background:transparent; color:#a3917a; border-color:#eee2c8}
+  .rbtn:disabled{opacity:.4; cursor:default}
+
+  #toast{position:fixed; left:50%; bottom:24px; transform:translate(-50%,14px); z-index:200; opacity:0;
+    pointer-events:none; background:rgba(15,30,44,.94); color:#fff; padding:11px 17px; border-radius:24px;
+    font-size:12.5px; max-width:86vw; text-align:center; transition:opacity .2s, transform .2s;
+    box-shadow:0 6px 22px rgba(15,30,44,.3)}
+  #toast.on{opacity:1; transform:translate(-50%,0)}
+  #manual{position:fixed; inset:0; z-index:300; background:rgba(15,30,44,.5); display:none;
+    align-items:center; justify-content:center; padding:22px}
+  #manual.on{display:flex}
+  #manual div{background:#fff; border-radius:14px; padding:17px; width:100%; max-width:340px}
+  #manual p{margin:0 0 10px; font-size:13px}
+  #manual textarea{width:100%; height:64px; font-size:14px; font-family:var(--sans); border:1px solid var(--line);
+    border-radius:9px; padding:9px; resize:none; background:#f8fafc}
+
+  [hidden]{display:none !important}
+  :focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+
+  /* ── 2단 레이아웃 (넓은 화면에서만 JS가 body.two를 켠다) ── */
+  #list{max-width:760px; margin:0 auto}
+  body.two{overflow:hidden}
+  body.two #list{max-width:none; margin:0; grid-column:1; grid-row:5; overflow-y:auto;
+    background:var(--bg); border-right:1px solid var(--line)}
+  body.two .pane{display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr);
+    grid-template-rows:auto auto auto auto minmax(0,1fr) auto; height:100vh}
+  body.two header{grid-column:1; grid-row:1}
+  body.two #tabs{grid-column:1; grid-row:2}
+  body.two .legend{grid-column:1; grid-row:3}
+  body.two #recbar{grid-column:1; grid-row:4}
+  body.two footer{grid-column:1; grid-row:6; background:var(--surface); border-top:1px solid var(--line);
+    border-right:1px solid var(--line); padding:8px 14px; max-height:34vh; overflow-y:auto}
+  body.two footer .fnote{border:0; padding:0; background:none}
+  body.two #mapbox{grid-column:2; grid-row:1/-1; position:static}
+  body.two #map{height:100vh; min-height:0; border-bottom:0}
+  body.two .card{scroll-margin-top:12px}
+</style>
+</head>
+<body>
+
+<div class="pane">
+
+  <header>
+    <h1>상하이 커피 지도 <span>· <b id="n-all">–</b>곳</span></h1>
+    <p class="sub" id="subline">SHANGHAI · SUZHOU · WUXI</p>
+    <p class="tip">핀이나 카드를 누르면 지도가 움직여요. 주소를 확인하지 못한 5곳은 지도에 없고 목록에만 있으니 <b>고덕에서 이름 검색</b>을 쓰세요. 주소 오른쪽 아이콘은 <b>지도에서 열기 · 이름으로 검색 · 주소 복사</b>입니다. 앱이 안 열리면 주소를 복사해 고덕지도(高德地图) 검색창에 붙여넣는 게 가장 확실합니다.</p>
+  </header>
+
+  <nav id="tabs">
+    <button data-g="all" aria-selected="true">전체 <b>–</b></button>
+    <button data-g="cafe" aria-selected="false">카페 <b>–</b></button>
+    <button data-g="spot" aria-selected="false">여행·스팟 <b>–</b></button>
+  </nav>
+
+  <div class="legend">
+    <s>좌표 확인 <b id="n-ok">–</b></s><s class="est">대략 위치 <b id="n-est">–</b></s><s class="off">목록만 <b id="n-off">–</b></s>
+  </div>
+
+  <div id="recbar">
+    <span class="rlabel">방문 기록 <b id="vcount">0</b>/<b id="n-total">–</b></span>
+    <span class="ract">
+      <button id="vexport" class="rbtn" disabled>복사</button>
+      <button id="vclear" class="rbtn ghost" disabled>지우기</button>
+    </span>
+  </div>
+
+  <div id="mapbox">
+    <div id="map" tabindex="0">
+      <div id="layer"><div id="tiles"></div><div id="pins"></div></div>
+      <div id="scale">—<span></span></div>
+      <div class="mapctl">
+        <button id="zin" aria-label="확대">+</button>
+        <button id="zout" aria-label="축소">−</button>
+        <button id="fit" class="wide">전체</button>
+      </div>
+      <div id="maperr">지금은 인터넷이 없어 지도 배경을 못 불러왔어요. 핀 위치와 목록은 그대로 쓸 수 있고, 연결되면 배경이 자동으로 채워집니다.</div>
+    </div>
+  </div>
+
+<main id="list">
+
+  <div class="grouphead" data-group="cafe"><h2>카페</h2><span>CAFE · <b class="grange"></b></span></div>
+
+  <article class="card" data-id="01" data-group="cafe" data-fix="ok" data-lat="31.20561" data-lon="121.45535" data-kw="Ops Cafe 太原路177弄">
+    <div class="c-head"><div class="idx">01</div>
+      <div class="c-title"><h3 class="c-name">오피에스 커피 (OPS Cafe)</h3><span class="c-tag">시그니처 드링크</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市徐汇区太原路177弄1号</span></div></div>
+    <p class="c-desc">2017년 오픈, 4평짜리 테이크아웃 매장. 좌석이 없고 시즌 세트 메뉴 5종만 파는데 주말 웨이팅 40분. 우유 단백질을 걸러 투명하고 묵직한 질감을 낸 투명 코코넛 라떼, 파이프 드림이 대표. 建国西路 모서리에 있고 02·03과 같은 길에 붙어 있어 한 번에 도는 게 정석.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="02" data-group="cafe" data-fix="approx" data-lat="31.2054" data-lon="121.4554" data-kw="CaptainGeorge风味博物馆">
+    <div class="c-head"><div class="idx">02</div>
+      <div class="c-title"><h3 class="c-name">캡틴 조지 (CaptainGeorge Flavor Museum)</h3><span class="c-tag">하이엔드 브루잉</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市徐汇区太原路236号</span><span class="flag">좌표 근사</span></div></div>
+    <p class="c-desc">OPS와 같은 太原路, 도보 2~3분. 嘉善路역에서 12분. 고덕지도에서 찾을 때 <b>CaptainGeorge를 붙여서</b> 검색해야 나옴(한자 CaptainGeorge风味博物馆). 원두 하나로 아메리카노·밀크·시그니처를 한 번에 마시는 Cups Set, 같은 농장 4개 품종을 비교하는 Flavor Museum 세트가 이 집의 정체성. 필터 커피는 온도계와 함께 나와 식으면서 산미가 올라오는 걸 짚어줌.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="03" data-group="cafe" data-fix="unknown" data-nopin="1" data-lat="31.2058" data-lon="121.4550" data-kw="AROR COFFEE 上海 徐汇区">
+    <div class="c-head"><div class="idx">03</div>
+      <div class="c-title"><h3 class="c-name">알로 (AROR COFFEE)</h3><span class="c-tag">챔피언 바리스타</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市徐汇区 (太原路 인근)</span><span class="flag">지도 미표시 · 이름 검색</span></div></div>
+    <p class="c-desc">중국 바리스타 챔피언이 낸 동네 매장. 에스프레소에 블랙베리와 현지 쌀 음료를 섞어 아침 식사 같은 편안한 단맛을 낸 시그니처가 일품. 번지수를 못 찾았으니 고덕에서 AROR로 검색해서 확인하는 게 빠름.</p>
+    <div class="links"><a href="#" data-act="apple">Apple 지도에서 검색</a></div>
+  </article>
+
+  <article class="card" data-id="04" data-group="cafe" data-fix="unknown" data-nopin="1" data-lat="31.2254" data-lon="121.4621" data-kw="Spot Table 咖啡 上海 静安区">
+    <div class="c-head"><div class="idx">04</div>
+      <div class="c-title"><h3 class="c-name">스팟 테이블 (Spot Table)</h3><span class="c-tag">식재료 실험</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市静安区</span><span class="flag">지도 미표시 · 이름 검색</span></div></div>
+    <p class="c-desc">접객이 인상적인 핫플. 파인애플에 누룩(코지)을 발효시켜 청주와 막걸리 사이의 뉘앙스를 낸 파인애플 라떼, 스파이스 와인 풍미 음료가 특징. 핀은 정안구 대략 위치이므로 반드시 이름으로 검색.</p>
+    <div class="links"><a href="#" data-act="apple">Apple 지도에서 검색</a></div>
+  </article>
+
+  <article class="card" data-id="05" data-group="cafe" data-fix="ok" data-lat="31.20778" data-lon="121.46673" data-kw="COFFEE AROMA 瑞金二路272">
+    <div class="c-head"><div class="idx">05</div>
+      <div class="c-title"><h3 class="c-name">커피 아로마 (COFFEE AROMA)</h3><span class="c-tag">원두 셀렉션</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市黄浦区瑞金二路272-2号</span></div></div>
+    <p class="c-desc">정안구가 아니라 <b>황푸구 田子坊 쪽</b>, 打浦桥역 1번 출구에서 240m. 생두에 돈을 아끼지 않는 집으로 유명하고 파나마 게이샤를 여러 종 섞은 블렌드처럼 화려하게 터지는 스타일. 원두 종류가 많아 메뉴판에 풍미 설명이 붙어 있음. 반려동물 동반 가능. 09시 오픈.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="06" data-group="cafe" data-fix="approx" data-lat="31.2055" data-lon="121.4545" data-kw="Coffee Buff 建国西路 上海">
+    <div class="c-head"><div class="idx">06</div>
+      <div class="c-title"><h3 class="c-name">커피 버프 (Coffee Buff)</h3><span class="c-tag">로스터리</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市徐汇区建国西路 (번지 미확인)</span><span class="flag">좌표 근사</span></div></div>
+    <p class="c-desc">온라인 로스팅 브랜드로 먼저 이름을 얻은 뒤 2022년 建国西路에 첫 오프라인 매장을 냈음. 대표 리전(李震)은 2020 중국 브루잉 챔피언이자 여러 대회 챔피언들의 원두를 로스팅해 준 로스터. 특조 음료 없이 에스프레소 4종 + 싱글 오리진 9~10종만 취급. 고소함과 깨끗한 끝맛의 윈난 블렌드 추천. 핀은 建国西路 중간쯤이라 이름 검색 필수.</p>
+    <div class="links"><a href="#" data-act="amap">핀 위치로 열기</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="07" data-group="cafe" data-fix="unknown" data-nopin="1" data-lat="31.2154" data-lon="121.4712" data-kw="Penguin Me 咖啡 上海">
+    <div class="c-head"><div class="idx">07</div>
+      <div class="c-title"><h3 class="c-name">펭귄 미 (Penguin Me)</h3><span class="c-tag">필터 커피</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市</span><span class="flag">지도 미표시 · 이름 검색</span></div></div>
+    <p class="c-desc">현지 미식 어워드에 연속 선정된 동네 사랑방 감성. 원두 캐릭터를 깔끔하게 살리는 필터 커피가 강점이고, 건자두와 흑설탕 같은 짙은 단맛이 매력. 주소를 못 찾았으니 이름 검색으로 확인.</p>
+    <div class="links"><a href="#" data-act="apple">Apple 지도에서 검색</a></div>
+  </article>
+
+  <article class="card" data-id="08" data-group="cafe" data-fix="unknown" data-nopin="1" data-lat="31.2421" data-lon="121.4921" data-kw="Parking Coffee 咖啡 上海">
+    <div class="c-head"><div class="idx">08</div>
+      <div class="c-title"><h3 class="c-name">파킹 커피 (Parking Coffee)</h3><span class="c-tag">공간 · 브루잉</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市</span><span class="flag">지도 미표시 · 이름 검색</span></div></div>
+    <p class="c-desc">높은 층고와 타이포그래피, 톤앤매너의 통일감이 돋보이는 매장. 열대과일과 카카오 닙스, 은은한 초록 허브 향이 겹치는 하이엔드 브루잉. 주소를 못 찾았으니 이름 검색으로 확인.</p>
+    <div class="links"><a href="#" data-act="apple">Apple 지도에서 검색</a></div>
+  </article>
+
+  <article class="card" data-id="09" data-group="cafe" data-fix="unknown" data-nopin="1" data-far="1" data-lat="31.3025" data-lon="120.6124" data-kw="MALUS COFFEE 苏州 姑苏区">
+    <div class="c-head"><div class="idx">09</div>
+      <div class="c-title"><h3 class="c-name">마로스 커피 (Malus Coffee)</h3><span class="c-tag">쑤저우 · 챔피언</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">江苏省苏州市姑苏区</span><span class="flag">지도 미표시 · 이름 검색</span></div></div>
+    <p class="c-desc">중국 최고 바리스타로 꼽히는 순레이의 거점. 친환경 테마의 소형 캔 원두 패키지가 유명하고, 실제 과일 없이 백도와 베르가못 향을 만들어낸 챔피언십 시그니처를 마실 수 있음. 상하이 시내에서 서쪽 80km, 우시 가는 길에 붙이는 코스. 핀은 姑苏区 중심이라 실제 매장 위치는 검색 필요.</p>
+    <div class="links"><a href="#" data-act="apple">Apple 지도에서 검색</a></div>
+  </article>
+
+  <div class="grouphead" data-group="spot"><h2>여행 · 스팟</h2><span>SPOT · <b class="grange"></b></span></div>
+
+  <article class="card" data-id="10" data-group="spot" data-fix="ok" data-lat="31.183927" data-lon="121.464324" data-kw="龙美术馆西岸馆">
+    <div class="c-head"><div class="idx">10</div>
+      <div class="c-title"><h3 class="c-name">롱 미술관 (龙美术馆 西岸馆)</h3><span class="c-tag">건축 · 현대미술</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市徐汇区龙腾大道3398号</span></div></div>
+    <p class="c-desc">석탄 부두 구조물을 살린 노출 콘크리트 건축. 곡면 기둥과 T자형 볼트 천장이 그대로 남아 있어 전시보다 공간이 먼저 기억에 남음. 강변 산책로와 붙어 있고 매달 첫째 화요일 무료.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="11" data-group="spot" data-fix="approx" data-lat="31.247203" data-lon="121.482416" data-kw="塘沽路菜市场 虹口区">
+    <div class="c-head"><div class="idx">11</div>
+      <div class="c-title"><h3 class="c-name">홍커우 재래시장 (塘沽路菜市场)</h3><span class="c-tag">로컬 장보기</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市虹口区塘沽路684号</span><span class="flag">동일 시장 여부 미확인</span></div></div>
+    <p class="c-desc">원래 메모의 "우송루(乌松路)"는 虹口区 吴淞路의 오기로 보이고, 그 길과 만나는 塘沽路의 시장이 가장 유력한 후보. 주민들이 아침마다 민물 생선과 야채를 사 가는 곳으로, 홍샤오(红烧) 양념 같은 로컬 소스를 싸게 사서 숙소에서 요리하기 좋음. 다른 시장이었다면 이 근처에서 다시 검색.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="12" data-group="spot" data-fix="ok" data-lat="31.246433" data-lon="121.495793" data-kw="北外滩滨江绿地 东大名路">
+    <div class="c-head"><div class="idx">12</div>
+      <div class="c-title"><h3 class="c-name">북와이탄 빈장 뤼디 (北外滩滨江绿地)</h3><span class="c-tag">무료 전망</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市虹口区东大名路358号</span></div></div>
+    <p class="c-desc">"뤼디"는 부동산 회사가 아니라 강변 녹지(绿地)를 말함. 와이탄과 루자쭈이 스카이라인을 한 화면에 담을 수 있고 사람이 적어 사진이 편함. 유람선이 지나가는 각도가 좋아 해 질 무렵~야경 시간대 추천, 입장료 없음.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="13" data-group="spot" data-fix="ok" data-lat="31.214839" data-lon="121.465899" data-kw="Speak Low 复兴中路579号">
+    <div class="c-head"><div class="idx">13</div>
+      <div class="c-title"><h3 class="c-name">스피크 로우 (Speak Low)</h3><span class="c-tag">스피크이지 바</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市黄浦区复兴中路579号</span></div></div>
+    <p class="c-desc">1층 바 용품점의 책장 문을 밀고 들어가는 구조. 2층·3층이 컨셉이 다르고, 먼저 2층으로 안내받은 뒤 위층으로 올라감. 아일라 싱글몰트 셀렉션과 시그니처 칵테일 Speak Low. 05번 커피 아로마와 도보 10분 거리라 낮에 커피 → 밤에 여기로 묶기 좋음.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+  <article class="card" data-id="14" data-group="spot" data-fix="ok" data-far="1" data-lat="31.13931" data-lon="121.68017" data-kw="奕欧来 上海购物村">
+    <div class="c-head"><div class="idx">14</div>
+      <div class="c-title"><h3 class="c-name">비스터 상하이 빌리지 (奕欧来)</h3><span class="c-tag">아울렛</span></div></div>
+    <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市浦东新区申迪东路88号</span></div></div>
+    <p class="c-desc">디즈니랜드 옆 유럽풍 조경의 프리미엄 아울렛. 브랜드 수가 많고 사람이 붐비지 않아 쾌적하지만 "아울렛치고는 비싸다"는 후기도 많음. 시내에서 동쪽으로 멀어 반나절 코스로 따로 잡는 게 맞음.</p>
+    <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
+  </article>
+
+</main>
+
+  <footer>
+    <details>
+      <summary>지도 안내 · 핀 신뢰도 · 방문 기록</summary>
+      <div class="fnote">
+        <b>핀 신뢰도</b> — 채워진 핀(<span class="ids" id="f-ok"></span>)은 등록된 주소·좌표로 찍었습니다. 점선 핀(<span class="ids" id="f-est"></span>)은 도로까지만 확인돼 수백 m 오차가 있을 수 있습니다. <span class="ids" id="f-off"></span>는 위치를 특정하지 못해 지도에 넣지 않고 목록에만 두었으니, 상호로 검색해서 찾아가세요.<br>
+        <b>좌표계</b> — 중국 지도 기준(GCJ-02)이라 고덕지도·애플지도와는 맞고, 구글지도로 열면 조금 밀려 보일 수 있습니다.<br>
+        <b>지도 배경</b> — 온라인일 때만 표시되고, 안 되면 격자 배경으로 바뀝니다. 핀·목록·주소 복사는 인터넷 없이도 동작합니다.<br>
+        <b>방문 기록</b> — 별을 누르면 방문한 순서대로 번호가 붙습니다. 기록은 이 브라우저에만 저장되니 친구 폰의 기록과는 따로 쌓입니다.
+      </div>
+    </details>
+    <span class="sig">CAFE MAP · SINGLE FILE · NO API KEY · BUILD 2026-08-03 v4</span>
+  </footer>
+</div>
+
+<div id="toast" role="status"></div>
+<div id="manual"><div>
+  <p>복사가 막혀 있어요. 아래 주소를 길게 눌러 복사해 주세요.</p>
+  <textarea id="manual-t" readonly></textarea>
+  <button class="btn go" id="manual-x" style="margin-top:10px">닫기</button>
+</div></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ───── 지도 엔진 (라이브러리 없음) ───── */
+  var TILE = 256, MINZ = 10, MAXZ = 17;
+  var map = document.getElementById('map'),
+      layer = document.getElementById('layer'),
+      tileBox = document.getElementById('tiles'),
+      pinBox = document.getElementById('pins');
+
+  var SRC = [
+    { name:'amap', url:function(x,y,z){ return 'https://webrd0'+(((x+y)%4)+1)+'.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x='+x+'&y='+y+'&z='+z; } },
+    { name:'osm',  url:function(x,y,z){ return 'https://tile.openstreetmap.org/'+z+'/'+x+'/'+y+'.png'; } }
+  ];
+  var srcIdx = 0, tiles = {}, tileOk = 0, tileFail = 0;
+
+  var zoom = 13, ctr = { lat:31.2210, lon:121.4650 };
+  /* 갈 곳이 상하이–우시 권역이라 지도 중심이 이 밖으로 나가지 않게 묶는다.
+     우시(31.57,120.30)와 14곳 전부가 안에 들어오는 범위. */
+  var BOUNDS = { latMin:30.60, latMax:32.30, lonMin:119.60, lonMax:122.40 };
+  function clampCenter(){
+    var la = clamp(ctr.lat, BOUNDS.latMin, BOUNDS.latMax);
+    var lo = clamp(ctr.lon, BOUNDS.lonMin, BOUNDS.lonMax);
+    if (la === ctr.lat && lo === ctr.lon) return false;
+    ctr.lat = la; ctr.lon = lo;
+    return true;
+  }
+  var origin = { x:0, y:0 }, frame = { x:0, y:0 };
+  var group = 'all', activeId = null, pop = null;
+
+  function toRad(d){ return d * Math.PI / 180; }
+  function project(lat, lon, z){
+    var s = TILE * Math.pow(2, z), sy = Math.sin(toRad(lat));
+    return { x:(lon + 180) / 360 * s, y:(0.5 - Math.log((1 + sy) / (1 - sy)) / (4 * Math.PI)) * s };
+  }
+  function unproject(x, y, z){
+    var s = TILE * Math.pow(2, z), n = Math.PI - 2 * Math.PI * y / s;
+    return { lat:180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))), lon:x / s * 360 - 180 };
+  }
+  function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+  function W(){ return map.clientWidth; }
+  function H(){ return map.clientHeight; }
+
+  function syncOrigin(){
+    var c = project(ctr.lat, ctr.lon, zoom);
+    origin.x = c.x - W() / 2;
+    origin.y = c.y - H() / 2;
+  }
+  function syncCenter(){
+    ctr = unproject(origin.x + W() / 2, origin.y + H() / 2, zoom);
+  }
+  function applyT(scale){
+    var t = 'translate3d(' + (frame.x - origin.x) + 'px,' + (frame.y - origin.y) + 'px,0)';
+    layer.style.transform = scale ? t + ' scale(' + scale + ')' : t;
+  }
+
+  function fillTiles(){
+    var x0 = Math.floor(origin.x / TILE) - 1, x1 = Math.floor((origin.x + W()) / TILE) + 1;
+    var y0 = Math.floor(origin.y / TILE) - 1, y1 = Math.floor((origin.y + H()) / TILE) + 1;
+    var n = Math.pow(2, zoom), x, y;
+    for (x = x0; x <= x1; x++){
+      for (y = y0; y <= y1; y++){
+        if (y < 0 || y >= n) continue;
+        var tx = ((x % n) + n) % n;
+        var key = SRC[srcIdx].name + '/' + zoom + '/' + tx + '/' + y;
+        if (tiles[key]) continue;
+        var img = new Image();
+        img.alt = '';
+        img.decoding = 'async';
+        img.style.left = (x * TILE - frame.x) + 'px';
+        img.style.top = (y * TILE - frame.y) + 'px';
+        img.onload = function(){ tileOk++; this.className = 'on'; };
+        img.onerror = onTileError;
+        img.src = SRC[srcIdx].url(tx, y, zoom);
+        tiles[key] = img;
+        tileBox.appendChild(img);
+      }
+    }
+  }
+  function onTileError(){
+    tileFail++;
+    if (tileOk > 0 || tileFail < 4) return;
+    if (srcIdx < SRC.length - 1){          // 첫 소스가 막히면 다른 소스로
+      srcIdx++; tileFail = 0; tiles = {}; tileBox.innerHTML = ''; fillTiles();
+    } else {
+      map.classList.add('nomap');          // 둘 다 실패 = 오프라인
+    }
+  }
+  var fillQueued = false;
+  function queueFill(){
+    if (fillQueued) return;
+    fillQueued = true;
+    requestAnimationFrame(function(){ fillQueued = false; fillTiles(); });
+  }
+
+  function rebuild(){
+    syncOrigin();
+    frame.x = origin.x; frame.y = origin.y;
+    tiles = {}; tileBox.innerHTML = '';
+    layer.style.transformOrigin = '0 0';
+    applyT();
+    fillTiles();
+    drawPins();
+    if (activeId) openPop(activeId, false);
+    layer.className = zoom >= 14 ? 'near' : '';
+    drawScale();
+  }
+
+  /* ───── 데이터: 목록 DOM이 곧 원본 ───── */
+  var cards = [].slice.call(document.querySelectorAll('.card'));
+  function info(card){
+    return {
+      id: card.dataset.id,
+      group: card.dataset.group,
+      far: card.dataset.far === '1',
+      lat: parseFloat(card.dataset.lat),
+      lon: parseFloat(card.dataset.lon),
+      kw: card.dataset.kw || '',
+      fix: card.dataset.fix || 'unknown',
+      nopin: card.dataset.nopin === '1',
+      flag: card.querySelector('.flag') ? card.querySelector('.flag').textContent.trim() : '',
+      name: card.querySelector('.c-name').textContent.trim(),
+      tag: card.querySelector('.c-tag').textContent.trim(),
+      addr: (card.querySelector('.a-txt') || card.querySelector('.c-addr')).textContent.trim(),
+      desc: card.querySelector('.c-desc').textContent.trim(),
+      el: card
+    };
+  }
+  var spots = cards.map(info);
+
+  /* ───── 화면의 숫자·번호는 모두 카드에서 계산 ─────
+     장소 카드를 추가·삭제하면 헤더·탭·범례·푸터가 자동으로 따라온다. */
+  function bucket(s){ return s.nopin ? 'off' : (s.fix === 'ok' ? 'ok' : 'est'); }
+  function idsOf(list){
+    if (!list.length) return '없음';
+    return list.map(function(s){ return s.id; })
+               .sort(function(a, b){ return parseInt(a, 10) - parseInt(b, 10); }).join('·');
+  }
+
+  function paintCounts(){
+    var byBucket = { ok:[], est:[], off:[] };
+    spots.forEach(function(s){ byBucket[bucket(s)].push(s); });
+    var cafe = spots.filter(function(s){ return s.group === 'cafe'; });
+    var spot = spots.filter(function(s){ return s.group === 'spot'; });
+
+    function put(id, val){ var el = document.getElementById(id); if (el) el.textContent = val; }
+    document.title = '상하이 커피 지도 · ' + spots.length + '곳';
+    put('n-all', spots.length);
+    put('n-total', spots.length);
+    put('n-ok', byBucket.ok.length);
+    put('n-est', byBucket.est.length);
+    put('n-off', byBucket.off.length);
+    put('f-ok', idsOf(byBucket.ok));
+    put('f-est', idsOf(byBucket.est));
+    put('f-off', idsOf(byBucket.off));
+
+    function pad2(n){ return (n < 10 ? '0' : '') + n; }
+    put('subline', 'SHANGHAI · SUZHOU · WUXI / CAFE ' + pad2(cafe.length) + ' · SPOT ' + pad2(spot.length));
+
+    var counts = { all:spots.length, cafe:cafe.length, spot:spot.length };
+    [].forEach.call(document.querySelectorAll('#tabs button'), function(b){
+      var n = b.querySelector('b');
+      if (n) n.textContent = counts[b.dataset.g];
+    });
+
+    [].forEach.call(document.querySelectorAll('.grouphead'), function(head){
+      var list = spots.filter(function(s){ return s.group === head.dataset.group; });
+      var el = head.querySelector('.grange');
+      if (!el) return;
+      if (!list.length){ el.textContent = '0'; return; }
+      var nums = list.map(function(s){ return parseInt(s.id, 10); })
+                     .sort(function(a, b){ return a - b; });
+      var lo = nums[0], hi = nums[nums.length - 1];
+      var contiguous = (hi - lo + 1) === nums.length;   // 중간에 다른 그룹이 끼면 범위 표기가 거짓말이 된다
+      el.textContent = contiguous
+        ? (lo < 10 ? '0' + lo : lo) + '–' + (hi < 10 ? '0' + hi : hi)
+        : nums.length + '곳';
+    });
+  }
+
+  /* ───── 방문 기록 ─────
+     저장은 {장소id: 누른시각}만. 순서는 시각을 정렬해서 매번 계산하므로
+     중간을 취소해도 번호가 자동으로 당겨진다. */
+  var VKEY = 'shcafemap.visits.v1';
+  var visits = {}, storageOK = true, warned = false;
+  var STAR = '<svg viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.35 5.9.86-4.25 4.15 1 5.88L12 17.05 6.75 19.8l1-5.88L3.5 9.81l5.9-.86z"/></svg>';
+
+  try { var raw = localStorage.getItem(VKEY); if (raw) visits = JSON.parse(raw) || {}; }
+  catch (e) { storageOK = false; }
+
+  function saveVisits(){
+    try { localStorage.setItem(VKEY, JSON.stringify(visits)); }
+    catch (e) { storageOK = false; }
+  }
+  function visitOrder(){
+    var ids = Object.keys(visits).sort(function(a, b){ return visits[a] - visits[b]; });
+    var map = {};
+    ids.forEach(function(id, i){ map[id] = i + 1; });
+    return map;
+  }
+  function visitCount(){ return Object.keys(visits).length; }
+
+  function toggleVisit(id){
+    if (visits[id]) delete visits[id];
+    else visits[id] = Date.now();
+    saveVisits();
+    paintCounts();
+  paintVisits();
+    drawPins();
+    if (activeId) openPop(activeId, false);
+    if (!storageOK && !warned){
+      warned = true;
+      toast('이 환경에서는 기록이 저장되지 않아요. 새로고침하면 사라집니다.');
+    }
+  }
+
+  function paintVisits(){                 // 카드 별표 + 순서 + 카운터
+    var ord = visitOrder();
+    cards.forEach(function(c){
+      var id = c.dataset.id, on = !!visits[id];
+      c.classList.toggle('visited', on);
+      var btn = c.querySelector('.star');
+      if (btn){
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.title = on ? ord[id] + '번째 방문 · 다시 누르면 취소' : '방문 기록하기';
+        btn.querySelector('.ord').textContent = on ? ord[id] : '';
+      }
+    });
+    var n = visitCount();
+    var cnt = document.getElementById('vcount');
+    if (cnt) cnt.textContent = n;
+    var ex = document.getElementById('vexport'), cl = document.getElementById('vclear');
+    if (ex) ex.disabled = !n;
+    if (cl) cl.disabled = !n;
+  }
+
+  function visitSummary(){
+    var ord = visitOrder(), lines = [], pad = function(n){ return (n < 10 ? '0' : '') + n; };
+    Object.keys(visits).sort(function(a, b){ return visits[a] - visits[b]; }).forEach(function(id){
+      var s = byId(id), d = new Date(visits[id]);
+      if (!s) return;
+      lines.push(ord[id] + '. ' + s.name + ' — ' + (d.getMonth() + 1) + '/' + d.getDate() +
+                 ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()));
+    });
+    if (!lines.length) return '';
+    return '상하이 커피 지도 · 방문 기록 ' + lines.length + '곳\n' + lines.join('\n');
+  }
+
+  /* ───── 주소 옆 아이콘 액션 ───── */
+  var SVG = {
+    amap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s6.8-6.1 6.8-11a6.8 6.8 0 1 0-13.6 0c0 4.9 6.8 11 6.8 11z"/><circle cx="12" cy="10.3" r="2.5"/></svg>',
+    search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.6 15.6L20.5 20.5"/></svg>',
+    copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.6"/><path d="M15.4 5.4H6.6A2.2 2.2 0 0 0 4.4 7.6v8.8"/></svg>'
+  };
+  var LABEL = { amap:'고덕지도에서 이 위치 열기', search:'고덕지도에서 이름으로 검색', copy:'주소 복사' };
+  function iconBtn(act, pri){
+    return '<button class="ico' + (pri ? ' pri' : '') + '" data-act="' + act +
+           '" title="' + LABEL[act] + '" aria-label="' + LABEL[act] + '">' + SVG[act] + '</button>';
+  }
+  function actionsFor(s){                 // 신뢰도에 따라 기본 동작이 달라진다
+    if (s.nopin) return iconBtn('search', true) + iconBtn('copy', false);
+    if (s.fix === 'ok') return iconBtn('amap', true) + iconBtn('copy', false);
+    return iconBtn('amap', true) + iconBtn('search', false) + iconBtn('copy', false);
+  }
+  spots.forEach(function(s){
+    var row = s.el.querySelector('.addr-row');
+    if (row) row.insertAdjacentHTML('beforeend', actionsFor(s));
+    var head = s.el.querySelector('.c-head');
+    if (head) head.insertAdjacentHTML('beforeend',
+      '<button class="star" data-act="visit" aria-pressed="false"><span class="ord"></span>' + STAR + '</button>');
+  });
+  paintVisits();
+  function byId(id){ for (var i = 0; i < spots.length; i++) if (spots[i].id === id) return spots[i]; return null; }
+  function shown(){ return spots.filter(function(s){ return group === 'all' || s.group === group; }); }
+  function pinned(){ return shown().filter(function(s){ return !s.nopin; }); }
+
+  function drawPins(){
+    pinBox.innerHTML = '';
+    pop = null;
+    var pinOrd = visitOrder();
+    pinned().forEach(function(s){
+      var p = project(s.lat, s.lon, zoom);
+      var b = document.createElement('button');
+      b.className = 'pin' + (s.fix === 'ok' ? '' : ' est') + (s.id === activeId ? ' on' : '') +
+                    (visits[s.id] ? ' visited' : '');
+      b.dataset.pin = s.id;
+      b.dataset.group = s.group;
+      b.style.left = (p.x - frame.x) + 'px';
+      b.style.top = (p.y - frame.y) + 'px';
+      b.innerHTML = '<i><em>' + s.id + '</em></i><span class="ord">' + (pinOrd[s.id] || '') + '</span><b></b>';
+      b.querySelector('b').textContent = s.name.replace(/\s*\(.*/, '');
+      b.addEventListener('click', function(e){ e.stopPropagation(); select(s.id, true); });
+      pinBox.appendChild(b);
+    });
+  }
+
+  /* ───── 팝업(툴팁) ───── */
+  function openPop(id, scrollCard){
+    var s = byId(id);
+    if (!s) return;
+    if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+    var p = project(s.lat, s.lon, zoom);
+    pop = document.createElement('div');
+    pop.className = 'pop';
+    pop.dataset.for = id;
+    pop.dataset.group = s.group;
+    pop.style.left = (p.x - frame.x) + 'px';
+    pop.style.top = (p.y - frame.y) + 'px';
+    pop.innerHTML =
+      '<button class="x" data-act="close" aria-label="닫기">✕</button>' +
+      '<h3></h3><span class="c-tag"></span>' +
+      '<div class="addr-row" style="margin-top:8px"><div class="c-addr">' +
+        '<span class="a-txt"></span></div>' + actionsFor(s) + '</div>' +
+      '<p></p>' +
+      '<button class="vtog' + (visits[s.id] ? ' on' : '') + '" data-act="visit">' + STAR +
+        '<span>' + (visits[s.id] ? visitOrder()[s.id] + '번째로 방문함 · 취소' : '방문 기록하기') + '</span></button>';
+    pop.querySelector('h3').textContent = s.id + '. ' + s.name;
+    pop.querySelector('.c-tag').textContent = s.tag;
+    pop.querySelector('.a-txt').textContent = s.addr + (s.flag ? ' · ' + s.flag : '');
+    pop.querySelector('p').textContent = s.desc;
+    pinBox.appendChild(pop);
+    if (scrollCard) s.el.scrollIntoView({ block:'nearest', behavior:'smooth' });
+  }
+  function closePop(){
+    if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+    pop = null;
+  }
+
+  function select(id, keepView){
+    activeId = id;
+    var s = byId(id);
+    cards.forEach(function(c){ c.classList.toggle('on', c.dataset.id === id); });
+    if (s.nopin){                      // 지도에 핀이 없는 곳: 목록에서만 강조
+      activeId = null;
+      closePop();
+      [].forEach.call(pinBox.querySelectorAll('.pin'), function(p){ p.classList.remove('on'); });
+      toast('위치를 확인하지 못해 지도에는 없어요. 고덕에서 이름으로 검색하세요.');
+      return;
+    }
+    [].forEach.call(pinBox.querySelectorAll('.pin'), function(p){ p.classList.toggle('on', p.dataset.pin === id); });
+    if (!keepView){
+      var target = Math.max(zoom, 15);
+      if (target !== zoom){
+        zoom = target;
+        ctr = { lat:s.lat, lon:s.lon };
+        rebuild();
+      } else {
+        ctr = { lat:s.lat, lon:s.lon };
+        syncOrigin();
+        applyT();
+        queueFill();
+        drawPins();
+        drawScale();
+      }
+    }
+    openPop(id, keepView === true);
+  }
+
+  /* ───── 고덕지도 열기 / 복사 ───── */
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function amapWeb(s){
+    return 'https://uri.amap.com/marker?position=' + s.lon + ',' + s.lat +
+           '&name=' + encodeURIComponent(s.name) + '&coordinate=gaode&callnative=1&src=cafemap';
+  }
+  function openAmap(s){
+    var q = encodeURIComponent(s.name), web = amapWeb(s);
+    if (isIOS){
+      var left = false;
+      var onHide = function(){ if (document.hidden) left = true; };
+      document.addEventListener('visibilitychange', onHide);
+      setTimeout(function(){
+        document.removeEventListener('visibilitychange', onHide);
+        if (!left && !document.hidden) window.location.href = web;
+      }, 1500);
+      window.location.href = 'iosamap://viewMap?sourceApplication=cafemap&poiname=' + q +
+                             '&lat=' + s.lat + '&lon=' + s.lon + '&dev=0';
+    } else {
+      window.location.href = 'intent://viewMap?sourceApplication=cafemap&poiname=' + q +
+        '&lat=' + s.lat + '&lon=' + s.lon + '&dev=0#Intent;scheme=androidamap;' +
+        'package=com.autonavi.minimap;S.browser_fallback_url=' + encodeURIComponent(web) + ';end';
+    }
+  }
+  function openUrl(url){                 // 인앱 브라우저는 새 창을 막는 경우가 있어 같은 창으로 폴백
+    var w = null;
+    try { w = window.open(url, '_blank'); } catch (e) { w = null; }
+    if (!w) window.location.href = url;
+  }
+  function amapSearch(s){
+    return 'https://uri.amap.com/search?keyword=' + encodeURIComponent(s.kw || s.name) +
+           '&center=' + s.lon + ',' + s.lat + '&coordinate=gaode&callnative=1&src=cafemap';
+  }
+  function appleMap(s){
+    var q = 'https://maps.apple.com/?q=' + encodeURIComponent(s.kw || s.name);
+    return s.nopin ? q : q + '&ll=' + s.lat + ',' + s.lon;
+  }
+
+  var toastEl = document.getElementById('toast'), toastT;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastT);
+    toastT = setTimeout(function(){ toastEl.classList.remove('on'); }, 2200);
+  }
+  var manual = document.getElementById('manual');
+  document.getElementById('manual-x').addEventListener('click', function(){ manual.classList.remove('on'); });
+  function manualCopy(text){
+    document.getElementById('manual-t').value = text;
+    manual.classList.add('on');
+  }
+  function copyAddr(text){
+    if (navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(function(){ toast(text.length > 40 ? '방문 기록을 복사했어요.' : '주소를 복사했어요 · ' + text); },
+                                               function(){ legacyCopy(text); });
+    } else legacyCopy(text);
+  }
+  function legacyCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (ok) toast(text.length > 40 ? '방문 기록을 복사했어요.' : '주소를 복사했어요 · ' + text);
+    else manualCopy(text);
+  }
+
+  /* ───── 클릭 위임 ───── */
+  document.addEventListener('click', function(e){
+    var act = e.target.closest ? e.target.closest('[data-act]') : null;
+    if (act){
+      var holder = act.closest('.card') || act.closest('.pop');
+      var id = holder ? (holder.dataset.id || holder.dataset['for']) : null;
+      var s = byId(id);
+      var a = act.dataset.act;
+      if (a === 'close'){ e.preventDefault(); closePop(); return; }
+      if (!s) return;
+      e.preventDefault();
+      if (a === 'visit') toggleVisit(s.id);
+      else if (a === 'amap') openAmap(s);
+      else if (a === 'copy') copyAddr(s.addr);
+      else if (a === 'search') openUrl(amapSearch(s));
+      else if (a === 'web') openUrl(amapWeb(s));
+      else if (a === 'apple') openUrl(appleMap(s));
+      return;
+    }
+    var card = e.target.closest ? e.target.closest('.card') : null;
+    if (card) select(card.dataset.id, false);
+  });
+
+  /* ───── 탭 ───── */
+  var tabs = document.getElementById('tabs');
+  tabs.addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if (!b) return;
+    group = b.dataset.g;
+    [].forEach.call(tabs.children, function(x){ x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+    cards.forEach(function(c){ c.hidden = !(group === 'all' || c.dataset.group === group); });
+    [].forEach.call(document.querySelectorAll('.grouphead'), function(gh){
+      var has = spots.some(function(s){ return s.group === gh.dataset.group; });
+      gh.hidden = !has || !(group === 'all' || gh.dataset.group === group);
+    });
+    activeId = null;
+    closePop();
+    fitAll();
+  });
+
+  /* ───── 확대·축소·전체보기 ───── */
+  function zoomAt(nz, sx, sy){
+    nz = clamp(nz, MINZ, MAXZ);
+    if (nz === zoom) return;
+    var geo = unproject(origin.x + sx, origin.y + sy, zoom);
+    zoom = nz;
+    var p = project(geo.lat, geo.lon, zoom);
+    origin.x = p.x - sx; origin.y = p.y - sy;
+    syncCenter();
+    clampCenter();
+    rebuild();
+  }
+  document.getElementById('zin').addEventListener('click', function(){ zoomAt(zoom + 1, W() / 2, H() / 2); });
+  document.getElementById('zout').addEventListener('click', function(){ zoomAt(zoom - 1, W() / 2, H() / 2); });
+  document.getElementById('fit').addEventListener('click', function(){ activeId = null; closePop(); fitAll(); });
+
+  function fitAll(){
+    var list = pinned().filter(function(s){ return !s.far; });
+    if (!list.length) list = pinned();
+    if (!list.length) return;
+    var lats = list.map(function(s){ return s.lat; }), lons = list.map(function(s){ return s.lon; });
+    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+    var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
+    var padW = W() - 80, padH = H() - 110, z;
+    for (z = MAXZ; z > MINZ; z--){
+      var a = project(maxLat, minLon, z), b = project(minLat, maxLon, z);
+      if ((b.x - a.x) <= padW && (b.y - a.y) <= padH) break;
+    }
+    zoom = z;
+    var c1 = project(maxLat, minLon, z), c2 = project(minLat, maxLon, z);
+    ctr = unproject((c1.x + c2.x) / 2, (c1.y + c2.y) / 2, z);
+    rebuild();
+  }
+
+  /* ───── 드래그 · 핀치 ───── */
+  function panBy(dx, dy){
+    origin.x -= dx; origin.y -= dy;
+    syncCenter();
+    if (clampCenter()) syncOrigin();     // 권역 밖이면 더 밀리지 않는다
+    applyT();
+    queueFill();
+  }
+  var drag = null, pinch = null, lastTap = 0;
+
+  function fromUI(e){
+    var t = e.target;
+    return !!(t && t.closest && t.closest('.pop, .mapctl, #maperr, #scale'));
+  }
+  map.addEventListener('mousedown', function(e){
+    if (fromUI(e)) return;                 // 팝업 버튼 누를 때 지도가 밀리던 문제
+    drag = { x:e.clientX, y:e.clientY };
+    map.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mousemove', function(e){
+    if (!drag) return;
+    panBy(e.clientX - drag.x, e.clientY - drag.y);
+    drag.x = e.clientX; drag.y = e.clientY;
+  });
+  window.addEventListener('mouseup', function(){ drag = null; map.style.cursor = 'grab'; });
+
+  function dist(a, b){
+    return Math.sqrt(Math.pow(a.clientX - b.clientX, 2) + Math.pow(a.clientY - b.clientY, 2));
+  }
+  map.addEventListener('touchstart', function(e){
+    if (e.touches.length === 1){
+      if (fromUI(e)) { drag = null; pinch = null; return; }
+      drag = { x:e.touches[0].clientX, y:e.touches[0].clientY, moved:0 };
+      pinch = null;
+    } else if (e.touches.length === 2){
+      drag = null;
+      var r = map.getBoundingClientRect();
+      var mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+      var my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+      pinch = { d0:dist(e.touches[0], e.touches[1]), mx:mx, my:my, s:1 };
+      layer.style.transformOrigin = (origin.x + mx - frame.x) + 'px ' + (origin.y + my - frame.y) + 'px';
+    }
+  }, { passive:true });
+
+  map.addEventListener('touchmove', function(e){
+    if (pinch && e.touches.length === 2){
+      e.preventDefault();
+      pinch.s = dist(e.touches[0], e.touches[1]) / pinch.d0;
+      applyT(pinch.s);
+    } else if (drag && e.touches.length === 1){
+      e.preventDefault();
+      var t = e.touches[0];
+      drag.moved += Math.abs(t.clientX - drag.x) + Math.abs(t.clientY - drag.y);
+      panBy(t.clientX - drag.x, t.clientY - drag.y);
+      drag.x = t.clientX; drag.y = t.clientY;
+    }
+  }, { passive:false });
+
+  map.addEventListener('touchend', function(e){
+    if (pinch && e.touches.length < 2){
+      var s = pinch.s, mx = pinch.mx, my = pinch.my;
+      pinch = null;
+      layer.style.transformOrigin = '0 0';
+      applyT();
+      var dz = Math.round(Math.log(s) / Math.log(2));
+      if (dz !== 0) zoomAt(zoom + dz, mx, my);
+      return;
+    }
+    if (drag && drag.moved < 8 && e.changedTouches.length){
+      var now = Date.now();
+      if (now - lastTap < 320){
+        var r = map.getBoundingClientRect();
+        zoomAt(zoom + 1, e.changedTouches[0].clientX - r.left, e.changedTouches[0].clientY - r.top);
+        lastTap = 0;
+      } else lastTap = now;
+    }
+    drag = null;
+  });
+
+  /* 휠 처리: 트랙패드는 작은 delta를 수십 개 쏟아내고 마우스는 한 칸에 100 전후를 한 번 보낸다.
+     그래서 누적해두고 70ms 조용해지면 한 단계만 적용하고, 이후 180ms는 쉰다. */
+  var wAcc = 0, wTimer = null, wCool = 0, wX = 0, wY = 0;
+  map.addEventListener('wheel', function(e){
+    if (e.target.closest && e.target.closest('.pop')) return;
+    e.preventDefault();
+    if (Date.now() < wCool) return;
+    var d = e.deltaY;
+    if (e.deltaMode === 1) d *= 16;          // 줄 단위
+    else if (e.deltaMode === 2) d *= 100;    // 페이지 단위
+    wAcc += d;
+    var r = map.getBoundingClientRect();
+    wX = e.clientX - r.left;
+    wY = e.clientY - r.top;
+    if (wTimer) return;
+    wTimer = setTimeout(function(){
+      wTimer = null;
+      if (Math.abs(wAcc) < 8){ wAcc = 0; return; }
+      var dir = wAcc > 0 ? -1 : 1;
+      wAcc = 0;
+      wCool = Date.now() + 180;
+      zoomAt(zoom + dir, wX, wY);
+    }, 70);
+  }, { passive:false });
+
+  /* 더블클릭 확대 (모바일의 더블탭과 동일) */
+  map.addEventListener('dblclick', function(e){
+    if (e.target.closest && e.target.closest('.pop, .mapctl')) return;
+    var r = map.getBoundingClientRect();
+    zoomAt(zoom + 1, e.clientX - r.left, e.clientY - r.top);
+  });
+
+  /* 키보드: 방향키 이동, +/- 줌 */
+  map.addEventListener('keydown', function(e){
+    var step = 90, k = e.key;
+    if (k === 'ArrowLeft') panBy(step, 0);
+    else if (k === 'ArrowRight') panBy(-step, 0);
+    else if (k === 'ArrowUp') panBy(0, step);
+    else if (k === 'ArrowDown') panBy(0, -step);
+    else if (k === '+' || k === '=') zoomAt(zoom + 1, W() / 2, H() / 2);
+    else if (k === '-' || k === '_') zoomAt(zoom - 1, W() / 2, H() / 2);
+    else return;
+    e.preventDefault();
+  });
+
+  /* ───── 축척 ───── */
+  var scaleEl = document.getElementById('scale');
+  function drawScale(){
+    var mpp = 156543.03392 * Math.cos(toRad(ctr.lat)) / Math.pow(2, zoom);
+    var steps = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000], i, m = steps[0];
+    for (i = 0; i < steps.length; i++){
+      if (steps[i] / mpp <= 96) m = steps[i];
+    }
+    var px = Math.round(m / mpp);
+    scaleEl.firstChild.nodeValue = m >= 1000 ? (m / 1000) + 'km' : m + 'm';
+    scaleEl.querySelector('span').style.width = px + 'px';
+  }
+
+  /* ───── 시작 ───── */
+  function setLayout(){                  // 폰에서 2단으로 넘어가는 사고 방지
+    var screenW = (window.screen && window.screen.width) ? window.screen.width : window.innerWidth;
+    var wide = window.innerWidth >= 1024 && screenW >= 1000;
+    var was = document.body.classList.contains('two');
+    if (wide) document.body.classList.add('two');
+    else document.body.classList.remove('two');
+    return was !== wide;
+  }
+
+  var rt;
+  window.addEventListener('resize', function(){
+    clearTimeout(rt);
+    rt = setTimeout(function(){ setLayout(); rebuild(); }, 200);
+  });
+  window.addEventListener('orientationchange', function(){ setTimeout(rebuild, 350); });
+
+  document.getElementById('vexport').addEventListener('click', function(){
+    var txt = visitSummary();
+    if (!txt) { toast('아직 기록된 방문이 없어요.'); return; }
+    copyAddr(txt);
+  });
+  document.getElementById('vclear').addEventListener('click', function(){
+    if (!visitCount()) { toast('지울 기록이 없어요.'); return; }
+    if (!window.confirm('방문 기록 ' + visitCount() + '곳을 모두 지울까요?')) return;
+    visits = {};
+    saveVisits();
+    paintVisits();
+    drawPins();
+    if (activeId) openPop(activeId, false);
+    toast('방문 기록을 지웠어요.');
+  });
+
+  setLayout();
+  fitAll();
+  setTimeout(function(){ if (tileOk === 0 && tileFail === 0) queueFill(); }, 1200);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+.DS_Store
+
+# 로컬 전용 (토큰·도구 상태)
+.dev.vars
+.env
+.env.*
+.bkit/

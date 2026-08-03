@@ -1,0 +1,9 @@
+{
+  // Cloudflare Workers · 정적 파일만 배포하는 최소 설정
+  // main(Worker 스크립트)은 없어도 됩니다. public 폴더를 그대로 서빙합니다.
+  "name": "shanghai-map-202608",
+  "compatibility_date": "2026-08-03",
+  "assets": {
+    "directory": "./public/"
+  }
+}
