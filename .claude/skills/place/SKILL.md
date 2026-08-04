@@ -18,7 +18,7 @@ description: >
 
 - `/place 추가 <이름>` 또는 "장소 추가: <이름>" → 추가
 - `/place 삭제 <번호|이름>` → 삭제
-- 그룹이 명시 안 되면 판단: 커피/카페 → `cafe`, 그 외(관광지·식당·호텔·교통) → `spot`
+- 그룹이 명시 안 되면 판단: 커피/카페 → `cafe`, 차(찻집·차 상점·다구) → `tea`, 그 외(관광지·식당·호텔·교통) → `spot`
 - 지점이 여럿인 체인이면 기존 동선(와이탄·쉬후이 일대)에 가까운 지점을 고르되,
   선택했다는 사실과 대안을 반드시 보고에 남긴다
 
@@ -53,11 +53,11 @@ description: >
 ### 3. 카드 삽입
 
 - `data-id`: 기존 최대 번호 +1, 두 자리 문자열 (`grep -o 'data-id="[0-9]*"' public/index.html`)
-- 삽입 위치: cafe는 spot `grouphead` 앞, spot은 `</main>` 앞
+- 삽입 위치: cafe는 spot `grouphead` 앞, spot은 tea `grouphead` 앞, tea는 `</main>` 앞
 - 템플릿 (README에도 있음):
 
 ```html
-<article class="card" data-id="NN" data-group="cafe|spot" data-fix="ok"
+<article class="card" data-id="NN" data-group="cafe|spot|tea" data-fix="ok"
          data-lat="31.xxxxxx" data-lon="121.xxxxxx" data-kw="중문상호">
   <div class="c-head"><div class="idx">NN</div>
     <div class="c-title"><h3 class="c-name">한글 이름 (中文/English)</h3><span class="c-tag">한줄 분류</span></div></div>

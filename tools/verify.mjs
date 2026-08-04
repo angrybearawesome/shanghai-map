@@ -30,13 +30,14 @@ function expectations(html) {
   const dup = ids.filter((v, i) => ids.indexOf(v) !== i);
   const nopin = attrs.filter(a => /data-nopin="1"/.test(a)).length;
   const cafe = attrs.filter(a => /data-group="cafe"/.test(a)).length;
+  const tea = attrs.filter(a => /data-group="tea"/.test(a)).length;
   const outOfBounds = attrs.filter(a => {
     const lat = parseFloat((a.match(/data-lat="([\d.]+)"/) || [])[1]);
     const lon = parseFloat((a.match(/data-lon="([\d.]+)"/) || [])[1]);
     return !(lat >= BOUNDS.latMin && lat <= BOUNDS.latMax &&
              lon >= BOUNDS.lonMin && lon <= BOUNDS.lonMax);
   }).map((a, i) => (a.match(/data-id="(\d+)"/) || [])[1]);
-  return { total: attrs.length, cafe, spot: attrs.length - cafe,
+  return { total: attrs.length, cafe, tea, spot: attrs.length - cafe - tea,
            nopin, pins: attrs.length - nopin, dup, outOfBounds, ids };
 }
 
@@ -58,7 +59,7 @@ if (MODE === 'live') {
   url = `http://127.0.0.1:${server.address().port}/`;
 }
 const exp = expectations(srcHtml);
-console.log(`\n[${MODE}] 카드 ${exp.total} (카페 ${exp.cafe} + 스팟 ${exp.spot}), 핀 기대 ${exp.pins}\n`);
+console.log(`\n[${MODE}] 카드 ${exp.total} (카페 ${exp.cafe} + 스팟 ${exp.spot} + 차 ${exp.tea}), 핀 기대 ${exp.pins}\n`);
 check('data-id 중복 없음', exp.dup.length === 0, exp.dup.join(','));
 check('좌표가 지도 경계(BOUNDS) 안', exp.outOfBounds.length === 0, exp.outOfBounds.join(','));
 
@@ -96,7 +97,7 @@ check('카드 수 일치', dom.cards === exp.total, `${dom.cards}/${exp.total}`)
 check('핀 수 = 카드 − nopin', dom.pins === exp.pins, `${dom.pins}/${exp.pins}`);
 check('헤더 N곳 채워짐', dom.nAll === String(exp.total), dom.nAll);
 check('안내문 N곳 채워짐', dom.tipOff === String(exp.nopin), dom.tipOff);
-check('탭 숫자', dom.tabs.join(',') === [exp.total, exp.cafe, exp.spot].join(','), dom.tabs.join(','));
+check('탭 숫자', dom.tabs.join(',') === [exp.total, exp.cafe, exp.spot, exp.tea].join(','), dom.tabs.join(','));
 check('범례 합계 = 전체',
       Number(dom.nOk) + Number(dom.nEst) + Number(dom.nOff) === exp.total,
       `${dom.nOk}+${dom.nEst}+${dom.nOff}`);

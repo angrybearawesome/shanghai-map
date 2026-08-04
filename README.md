@@ -60,7 +60,7 @@ git push
 | 속성 | 값 | 효과 |
 |---|---|---|
 | `data-id` | 두 자리 번호 | 배지·핀 번호. 중복 금지 |
-| `data-group` | `cafe` / `spot` | 색상(파랑/청록)과 탭 분류 |
+| `data-group` | `cafe` / `spot` / `tea` | 색상(파랑/청록/자주)과 탭 분류 |
 | `data-fix` | `ok` | 좌표 확인됨 → 채워진 핀 |
 | | `approx` | 대략 위치 → 점선 핀 |
 | | `unknown` | 위치 모름 |

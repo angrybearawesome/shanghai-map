@@ -14,6 +14,7 @@
     --navy:#17293b; --navy-2:#0f1e2c;
     --blue:#2b7de9; --blue-d:#1a5fbd; --blue-soft:#eaf2fd;
     --teal:#0e9f96; --teal-d:#0a7b74; --teal-soft:#e3f5f3;
+    --plum:#8a5fc9; --plum-d:#6b45a6; --plum-soft:#f2ecfb;
     --warn:#a3701a; --warn-soft:#fdf5e4;
     --gold:#f2b21a; --gold-d:#b5810a; --gold-soft:#fff7e6;
     --sans:-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', Roboto, 'Noto Sans KR', sans-serif;
@@ -72,10 +73,13 @@
     font-style:normal; transition:transform .15s, background .15s}
   .pin i em{font-style:normal; font-family:var(--mono); font-size:11px; font-weight:600; transform:rotate(45deg)}
   .pin[data-group="spot"] i{background:var(--teal)}
+  .pin[data-group="tea"] i{background:var(--plum)}
   .pin.est i{background:#fff; color:var(--blue); border:2px dashed var(--blue); box-shadow:0 1px 5px rgba(23,41,59,.2)}
   .pin[data-group="spot"].est i{color:var(--teal); border-color:var(--teal)}
+  .pin[data-group="tea"].est i{color:var(--plum); border-color:var(--plum)}
   .pin.on i{background:var(--blue-d); color:#fff; border-style:solid; transform:rotate(-45deg) scale(1.18)}
   .pin[data-group="spot"].on i{background:var(--teal-d)}
+  .pin[data-group="tea"].on i{background:var(--plum-d)}
   .pin.on{z-index:6}
   .pin b{position:absolute; left:15px; top:-26px; display:none; white-space:nowrap; font-size:11px; font-weight:600;
     background:rgba(255,255,255,.94); color:#2c3d4c; padding:2px 7px; border-radius:5px;
@@ -134,11 +138,13 @@
     color:var(--blue); font-family:var(--mono); font-size:12px; font-weight:600;
     display:flex; align-items:center; justify-content:center}
   .card[data-group="spot"] .idx{background:var(--teal-soft); color:var(--teal)}
+  .card[data-group="tea"] .idx{background:var(--plum-soft); color:var(--plum)}
   .card[data-nopin] .idx{background:#f1f5f9; color:#8e9eac; box-shadow:inset 0 0 0 1px #dfe7ee}
   .c-name{margin:0; font-size:15.5px; font-weight:700; line-height:1.35; letter-spacing:-.3px}
   .c-tag{display:inline-block; margin-top:5px; font-size:11px; font-weight:600; color:var(--blue);
     background:var(--blue-soft); padding:3px 8px; border-radius:20px}
   .card[data-group="spot"] .c-tag{color:var(--teal); background:var(--teal-soft)}
+  .card[data-group="tea"] .c-tag{color:var(--plum); background:var(--plum-soft)}
   .star{flex:0 0 auto; display:flex; align-items:center; gap:4px; padding:3px 5px 3px 7px; margin:-3px -3px 0 0;
     border:0; background:none; cursor:pointer; border-radius:9px}
   .star svg{width:22px; height:22px; fill:none; stroke:#c3cdd6; stroke-width:1.8;
@@ -180,6 +186,8 @@
     text-decoration:underline; text-underline-offset:2px}
   .card[data-group="spot"] .ico, .pop[data-group="spot"] .ico{color:var(--teal); border-color:#b5ded9}
   .card[data-group="spot"] .ico.pri, .pop[data-group="spot"] .ico.pri{background:var(--teal); border-color:var(--teal); color:#fff}
+  .card[data-group="tea"] .ico, .pop[data-group="tea"] .ico{color:var(--plum); border-color:#d7c8ef}
+  .card[data-group="tea"] .ico.pri, .pop[data-group="tea"] .ico.pri{background:var(--plum); border-color:var(--plum); color:#fff}
   .c-desc{margin:0; font-size:13px; line-height:1.65; color:#455663}
   .c-desc b{color:var(--ink)}
   .row{display:flex; gap:8px}
@@ -189,6 +197,8 @@
   .btn.go:active{background:var(--blue-d)}
   .card[data-group="spot"] .btn.go{background:var(--teal); box-shadow:0 1px 3px rgba(10,123,116,.26)}
   .card[data-group="spot"] .btn.go:active{background:var(--teal-d)}
+  .card[data-group="tea"] .btn.go{background:var(--plum); box-shadow:0 1px 3px rgba(107,69,166,.26)}
+  .card[data-group="tea"] .btn.go:active{background:var(--plum-d)}
   .btn.cp{background:#fff; color:#37587f; border:1px solid #ccdcec}
   .btn.cp:active{background:#f2f6fb}
   .links{display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px}
@@ -288,6 +298,7 @@
     <button data-g="all" aria-selected="true">전체 <b>–</b></button>
     <button data-g="cafe" aria-selected="false">카페 <b>–</b></button>
     <button data-g="spot" aria-selected="false">여행·스팟 <b>–</b></button>
+    <button data-g="tea" aria-selected="false">차 <b>–</b></button>
   </nav>
 
   <div class="legend">
@@ -470,7 +481,9 @@
     <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
   </article>
 
-  <article class="card" data-id="19" data-group="spot" data-fix="ok" data-lat="31.2361" data-lon="121.4801" data-kw="黄隆泰 福建中路337号">
+  <div class="grouphead" data-group="tea"><h2>차</h2><span>TEA · <b class="grange"></b></span></div>
+
+  <article class="card" data-id="19" data-group="tea" data-fix="ok" data-lat="31.2361" data-lon="121.4801" data-kw="黄隆泰 福建中路337号">
     <div class="c-head"><div class="idx">19</div>
       <div class="c-title"><h3 class="c-name">황룽타이 차좡 (黄隆泰 · 福建中路店)</h3><span class="c-tag">전통 차 노포</span></div></div>
     <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市黄浦区福建中路337号 (近南京东路)</span></div></div>
@@ -478,7 +491,7 @@
     <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
   </article>
 
-  <article class="card" data-id="20" data-group="spot" data-fix="approx" data-lat="31.2271" data-lon="121.4802" data-kw="汪怡记茶庄 延安东路449号">
+  <article class="card" data-id="20" data-group="tea" data-fix="approx" data-lat="31.2271" data-lon="121.4802" data-kw="汪怡记茶庄 延安东路449号">
     <div class="c-head"><div class="idx">20</div>
       <div class="c-title"><h3 class="c-name">왕이지 차좡 (汪怡记 · 大世界店)</h3><span class="c-tag">전통 차 노포</span></div></div>
     <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市黄浦区延安东路449号</span><span class="flag">좌표 근사</span></div></div>
@@ -486,7 +499,7 @@
     <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
   </article>
 
-  <article class="card" data-id="21" data-group="spot" data-fix="approx" data-lat="31.219535" data-lon="121.475344" data-kw="tea'stone 新天地 兴业路123弄">
+  <article class="card" data-id="21" data-group="tea" data-fix="approx" data-lat="31.219535" data-lon="121.475344" data-kw="tea'stone 新天地 兴业路123弄">
     <div class="c-head"><div class="idx">21</div>
       <div class="c-title"><h3 class="c-name">티스톤 (tea'stone · 新天地店)</h3><span class="c-tag">모던 티하우스</span></div></div>
     <div class="addr-row"><div class="c-addr"><span class="a-txt">上海市黄浦区兴业路123弄5号 1층 L108室 (新天地 南里)</span><span class="flag">좌표 근사</span></div></div>
@@ -494,7 +507,7 @@
     <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
   </article>
 
-  <article class="card" data-id="22" data-group="spot" data-fix="ok" data-far="1" data-lat="31.5820" data-lon="120.2750" data-kw="惠山古镇">
+  <article class="card" data-id="22" data-group="tea" data-fix="ok" data-far="1" data-lat="31.5820" data-lon="120.2750" data-kw="惠山古镇">
     <div class="c-head"><div class="idx">22</div>
       <div class="c-title"><h3 class="c-name">혜산고진 (惠山古镇 · 우시)</h3><span class="c-tag">수향 고진 · 차 거리</span></div></div>
     <div class="addr-row"><div class="c-addr"><span class="a-txt">无锡市梁溪区长寿里15号 (惠山古镇景区)</span></div></div>
@@ -502,7 +515,7 @@
     <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
   </article>
 
-  <article class="card" data-id="23" data-group="spot" data-fix="approx" data-far="1" data-lat="31.2495" data-lon="119.8300" data-kw="中国陶都陶瓷城 丁蜀镇">
+  <article class="card" data-id="23" data-group="tea" data-fix="approx" data-far="1" data-lat="31.2495" data-lon="119.8300" data-kw="中国陶都陶瓷城 丁蜀镇">
     <div class="c-head"><div class="idx">23</div>
       <div class="c-title"><h3 class="c-name">중국 도자성 (中国陶都陶瓷城 · 이싱)</h3><span class="c-tag">자사호 · 다구</span></div></div>
     <div class="addr-row"><div class="c-addr"><span class="a-txt">江苏省无锡市宜兴市丁蜀镇公园西路 (兴陶路 일대)</span><span class="flag">좌표 근사</span></div></div>
@@ -680,6 +693,7 @@
     spots.forEach(function(s){ byBucket[bucket(s)].push(s); });
     var cafe = spots.filter(function(s){ return s.group === 'cafe'; });
     var spot = spots.filter(function(s){ return s.group === 'spot'; });
+    var tea  = spots.filter(function(s){ return s.group === 'tea'; });
 
     function put(id, val){ var el = document.getElementById(id); if (el) el.textContent = val; }
     document.title = '상하이 커피 지도 · ' + spots.length + '곳';
@@ -694,9 +708,9 @@
     put('f-off', idsOf(byBucket.off));
 
     function pad2(n){ return (n < 10 ? '0' : '') + n; }
-    put('subline', 'SHANGHAI · SUZHOU · WUXI / CAFE ' + pad2(cafe.length) + ' · SPOT ' + pad2(spot.length));
+    put('subline', 'SHANGHAI · SUZHOU · WUXI / CAFE ' + pad2(cafe.length) + ' · SPOT ' + pad2(spot.length) + ' · TEA ' + pad2(tea.length));
 
-    var counts = { all:spots.length, cafe:cafe.length, spot:spot.length };
+    var counts = { all:spots.length, cafe:cafe.length, spot:spot.length, tea:tea.length };
     [].forEach.call(document.querySelectorAll('#tabs button'), function(b){
       var n = b.querySelector('b');
       if (n) n.textContent = counts[b.dataset.g];
