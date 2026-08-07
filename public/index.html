@@ -283,6 +283,7 @@
   .pd-act button{padding:5px 10px; border-radius:8px; border:1px solid #ccdcec; background:#fff; color:#37587f;
     font-family:var(--sans); font-size:11.5px; font-weight:600; cursor:pointer; white-space:nowrap}
   .pd-act button.on{background:var(--blue); border-color:var(--blue); color:#fff}
+  .pd-act button:disabled{opacity:.3; cursor:default}
   .pd-act button[data-pact="delday"]{color:#a06060; border-color:#e8d5d5}
   .pstop{display:flex; align-items:center; gap:7px; margin:6px 0; position:relative}
   .psel{position:absolute; left:33px; right:0; top:100%; z-index:60; margin-top:4px; background:#fff;
@@ -1600,6 +1601,8 @@
       '<div class="pd-head"><h2>' + (di + 1) + '일차</h2><span class="pd-n">' + day.stops.length + '곳</span>' +
       (day.src ? '<span class="pd-src" title="공유받은 일정">' + esc(day.src) + '</span>' : '') +
       '<span class="pd-act">' +
+        '<button data-pact="dayup"' + (di === 0 ? ' disabled' : '') + ' aria-label="일차 위로">↑</button>' +
+        '<button data-pact="daydown"' + (di === plan.days.length - 1 ? ' disabled' : '') + ' aria-label="일차 아래로">↓</button>' +
         '<button data-pact="route"' + (planRouteDi === di ? ' class="on"' : '') + '>지도에 동선</button>' +
         '<button data-pact="delday">삭제</button></span></div>' +
       inner +
@@ -1747,6 +1750,15 @@
       plan.days.splice(di, 1);
       if (planRouteDi === di) planRouteDi = null;
       else if (planRouteDi !== null && planRouteDi > di) planRouteDi--;
+      legEdit = nearOpen = null;
+      savePlan(); renderPlan(); drawRoutes(); return;
+    }
+    if (act === 'dayup' || act === 'daydown'){
+      var dj = act === 'dayup' ? di - 1 : di + 1;
+      if (dj < 0 || dj >= plan.days.length) return;
+      plan.days[di] = plan.days[dj]; plan.days[dj] = day;   // 번호는 위치에서 계산되므로 자동 재번호
+      if (planRouteDi === di) planRouteDi = dj;             // 동선 켠 일차가 움직이면 인덱스도 따라간다
+      else if (planRouteDi === dj) planRouteDi = di;
       legEdit = nearOpen = null;
       savePlan(); renderPlan(); drawRoutes(); return;
     }

@@ -202,6 +202,21 @@ const ptab = await page.evaluate(() => {
 });
 check('계획: 장소 패널 분류 탭', ptab.tea === exp.tea && ptab.all === exp.total,
       `차 ${ptab.tea}/${exp.tea} · 전체 ${ptab.all}/${exp.total}`);
+/* 일차 ↑↓ 이동: 순서가 바뀌고 번호는 위치에서 자동 재계산 (검사 후 원복) */
+const dmove = await page.evaluate(() => {
+  document.querySelector('.pday[data-di="0"] button[data-pact="daydown"]').click();
+  const days = [...document.querySelectorAll('.pday')];
+  const out = {
+    labels: days.map(d => d.querySelector('h2').textContent).join(','),
+    stops0: days[0].querySelectorAll('.pstop').length,
+    stops1: days[1].querySelectorAll('.pstop').length,
+  };
+  document.querySelector('.pday[data-di="1"] button[data-pact="dayup"]').click();  // 원복
+  return out;
+});
+check('계획: 일차 이동 + 자동 재번호',
+      dmove.labels === '1일차,2일차' && dmove.stops0 === 0 && dmove.stops1 === 3,
+      JSON.stringify(dmove));
 
 /* ── 6. 계획 공유 링크 왕복 (링크 생성 → 새 방문자로 열기 → 추가 확인) ── */
 const shareUrl = await page.evaluate(() => {
