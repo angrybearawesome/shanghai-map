@@ -273,9 +273,9 @@
   body.planview #tabs, body.planview .legend, body.planview #recbar,
   body.planview #routebar, body.planview #list{display:none}
   .pday{background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:13px; margin:0 0 12px}
-  .pd-head{display:flex; align-items:center; gap:8px; margin-bottom:11px}
-  .pd-head h2{margin:0; font-size:14.5px; font-weight:700; letter-spacing:-.2px}
-  .pd-head .pd-n{font-family:var(--mono); font-size:10px; color:#93a4b3; letter-spacing:.05em}
+  .pd-head{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin-bottom:11px}
+  .pd-head h2{margin:0; font-size:14.5px; font-weight:700; letter-spacing:-.2px; white-space:nowrap}
+  .pd-head .pd-n{font-family:var(--mono); font-size:10px; color:#93a4b3; letter-spacing:.05em; white-space:nowrap}
   .pd-src{font-size:10px; font-weight:600; color:var(--gold-d); background:var(--gold-soft);
     border:1px solid #f0e3c0; border-radius:20px; padding:2px 8px; white-space:nowrap}
   .pday.shared{border-color:#eddfb9}
@@ -354,6 +354,19 @@
   .pglobal .padd.day{border-style:solid; border-color:var(--blue); color:var(--blue); background:var(--blue-soft)}
   .pglobal .padd.warn{color:#a06060; border-color:#dcc4c4; background:#fdf9f9}
 
+  /* ── 디자인 가이드 적용 (2026-08-07, docs/02-design/DESIGN-GUIDE.md §3) ──
+     ① 일차 요약 배지 ② 안내문 닫기 ③ 미입력 시간 톤다운
+     ④ 베이스맵 톤다운 ⑥ 계획 동선 핀 강조. 되돌릴 땐 이 블록만 제거 */
+  .pd-warn{font-size:10px; font-weight:700; color:#b4232c; background:#fdeaea;
+    border-radius:20px; padding:2px 8px; white-space:nowrap}
+  .tip{position:relative; padding-right:36px}
+  #tipx{position:absolute; top:7px; right:7px; width:24px; height:24px; border:0; border-radius:7px;
+    background:rgba(255,255,255,.09); color:#c4d4e3; font-size:12px; cursor:pointer; line-height:1}
+  .ps-time.empty{color:#adbcc9}
+  #tiles img{filter:saturate(.65) brightness(1.02)}   /* 내 핀·동선이 배경 위로 뜨도록 */
+  #layer.planrouting .pin:not(.onplan){opacity:.3}
+  #layer.planrouting .pin:not(.onplan) .ord{display:none}
+
   [hidden]{display:none !important}
   :focus-visible{outline:2px solid var(--blue); outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
@@ -386,7 +399,7 @@
   <header>
     <h1>상하이 여행 지도 <span>· <b id="n-all">–</b>곳</span></h1>
     <p class="sub" id="subline">SHANGHAI · SUZHOU · WUXI</p>
-    <p class="tip">핀이나 카드를 누르면 지도가 움직여요. 주소를 확인하지 못한 <b id="t-off">–</b>곳은 지도에 없고 목록에만 있으니 <b>고덕에서 이름 검색</b>을 쓰세요. 주소 오른쪽 아이콘은 <b>지도에서 열기 · 이름으로 검색 · 주소 복사</b>입니다. 앱이 안 열리면 주소를 복사해 고덕지도(高德地图) 검색창에 붙여넣는 게 가장 확실합니다.</p>
+    <p class="tip" id="tip">핀이나 카드를 누르면 지도가 움직여요. 주소를 확인하지 못한 <b id="t-off">–</b>곳은 지도에 없고 목록에만 있으니 <b>고덕에서 이름 검색</b>을 쓰세요. 주소 오른쪽 아이콘은 <b>지도에서 열기 · 이름으로 검색 · 주소 복사</b>입니다. 앱이 안 열리면 주소를 복사해 고덕지도(高德地图) 검색창에 붙여넣는 게 가장 확실합니다.<button id="tipx" aria-label="안내 닫기">✕</button></p>
   </header>
 
   <nav id="views">
@@ -965,6 +978,7 @@
       routesSvg.appendChild(path);
     });
     drawPlanRoute();                       // 계획 탭의 일차 동선 미리보기 (파란 점선)
+    syncPlanPins();                        // 동선 켠 일차의 스톱 핀 강조 (디자인 가이드 ⑥)
   }
 
   function refreshVisitUI(){
@@ -1100,6 +1114,7 @@
       b.addEventListener('click', function(e){ e.stopPropagation(); select(s.id, true); });
       pinBox.appendChild(b);
     });
+    syncPlanPins();                        // 핀을 다시 그려도 계획 동선 강조가 유지되게
   }
 
   /* ───── 팝업(툴팁) ───── */
@@ -1517,7 +1532,7 @@
     return { d:d, opts:opts, fast:fast, far:d > 60 };
   }
 
-  function legHTML(day, di, si){
+  function legHTML(day, di, si, locked){
     var a = day.stops[si], b = day.stops[si + 1], key = di + '-' + si;
     var manual = a.leg && a.leg.min;
     var est = (!manual && hasXY(a) && hasXY(b)) ? legEst(a, b) : null;
@@ -1556,7 +1571,7 @@
     }
     return '<div class="pleg" data-di="' + di + '" data-si="' + si + '"><span class="pl-arrow">↓</span>' +
            '<span class="pl-txt">' + body + '</span>' + warn +
-           '<button class="pl-edit" data-pact="legedit" title="소요 시간·교통편 직접 입력">수정</button></div>';
+           (locked ? '' : '<button class="pl-edit" data-pact="legedit" title="소요 시간·교통편 직접 입력">수정</button>') + '</div>';
   }
 
   function nearHTML(st, di, si){
@@ -1572,7 +1587,7 @@
       '<button class="pn-amap" data-pact="nearamap">고덕지도에서 주변 관광지 검색</button></div>';
   }
 
-  function stopHTML(day, di, si){
+  function stopHTML(day, di, si, locked){
     var st = day.stops[si], n = day.stops.length;
     var s = st.placeId ? byId(st.placeId) : null;
     var badge = s
@@ -1580,33 +1595,44 @@
         '" title="지도 ' + s.id + '번 — 지도에서 보기">' + (si + 1) + '</button>'
       : '<span class="ps-ord">' + (si + 1) + '</span>';
     var near = (nearOpen === di + '-' + si && hasXY(st)) ? nearHTML(st, di, si) : '';
+    var dis = locked ? ' disabled' : '';
     return '<div class="pstop" data-di="' + di + '" data-si="' + si + '">' + badge +
-      '<input type="time" class="ps-time" aria-label="시간" value="' + esc(st.time || '') + '">' +
-      '<input type="text" class="ps-place" autocomplete="off" placeholder="장소 이름" value="' + esc(st.name || '') + '">' +
-      '<span class="ps-tools">' +
+      '<input type="time" class="ps-time' + (st.time ? '' : ' empty') + '" aria-label="시간"' + dis +
+        ' value="' + esc(st.time || '') + '">' +
+      '<input type="text" class="ps-place" autocomplete="off" placeholder="장소 이름"' + dis +
+        ' value="' + esc(st.name || '') + '">' +
+      (locked ? '' : '<span class="ps-tools">' +
         (hasXY(st) ? '<button data-pact="near" title="주변 장소 추천">주변</button>' : '') +
         '<button data-pact="up"' + (si === 0 ? ' disabled' : '') + ' aria-label="위로">↑</button>' +
         '<button data-pact="down"' + (si === n - 1 ? ' disabled' : '') + ' aria-label="아래로">↓</button>' +
-        '<button data-pact="delstop" aria-label="삭제">✕</button></span></div>' + near;
+        '<button data-pact="delstop" aria-label="삭제">✕</button></span>') + '</div>' + near;
   }
 
   function dayHTML(day, di){
+    var locked = dayLocked(day);
     var inner = '';
     for (var i = 0; i < day.stops.length; i++){
-      inner += stopHTML(day, di, i);
-      if (i < day.stops.length - 1) inner += legHTML(day, di, i);
+      inner += stopHTML(day, di, i, locked);
+      if (i < day.stops.length - 1) inner += legHTML(day, di, i, locked);
     }
-    if (!day.stops.length) inner = '<p class="pd-empty">아래 버튼으로 첫 장소를 추가하세요. 시간·장소를 넣으면 구간 정보가 자동으로 붙습니다.</p>';
+    if (!day.stops.length) inner = '<p class="pd-empty">' + (locked
+      ? '공유받은 빈 일차예요 — 편집을 누르면 채울 수 있습니다.'
+      : '아래 버튼으로 첫 장소를 추가하세요. 시간·장소를 넣으면 구간 정보가 자동으로 붙습니다.') + '</p>';
+    var sum = daySummary(day);
+    var meta = day.stops.length + '곳';
+    if (sum.min) meta += ' · 이동 약 ' + fmtMin(sum.min) + (sum.unknown ? '+' : '');
     return '<section class="pday' + (day.src ? ' shared' : '') + '" data-di="' + di + '">' +
-      '<div class="pd-head"><h2>' + (di + 1) + '일차</h2><span class="pd-n">' + day.stops.length + '곳</span>' +
+      '<div class="pd-head"><h2>' + (di + 1) + '일차</h2><span class="pd-n">' + meta + '</span>' +
+      (sum.warn ? '<span class="pd-warn">이동 부족 ' + sum.warn + '</span>' : '') +
       (day.src ? '<span class="pd-src" title="공유받은 일정">' + esc(day.src) + '</span>' : '') +
       '<span class="pd-act">' +
+        (locked ? '<button data-pact="dayedit">편집</button>' : '') +
         '<button data-pact="dayup"' + (di === 0 ? ' disabled' : '') + ' aria-label="일차 위로">↑</button>' +
         '<button data-pact="daydown"' + (di === plan.days.length - 1 ? ' disabled' : '') + ' aria-label="일차 아래로">↓</button>' +
         '<button data-pact="route"' + (planRouteDi === di ? ' class="on"' : '') + '>지도에 동선</button>' +
         '<button data-pact="delday">삭제</button></span></div>' +
       inner +
-      '<button class="padd" data-pact="addstop">＋ 장소 추가</button></section>';
+      (locked ? '' : '<button class="padd" data-pact="addstop">＋ 장소 추가</button>') + '</section>';
   }
 
   function renderPlan(){
@@ -1711,6 +1737,34 @@
     path.setAttribute('stroke', '#1a5fbd');
     routesSvg.appendChild(path);
   }
+  function syncPlanPins(){                 // 동선 켠 일차의 스톱만 핀을 살리고 나머지는 흐리게
+    var on = planRouteDi !== null && !!plan.days[planRouteDi];
+    layer.classList.toggle('planrouting', on);
+    var ids = {};
+    if (on) plan.days[planRouteDi].stops.forEach(function(st){ if (st.placeId) ids[st.placeId] = 1; });
+    [].forEach.call(pinBox.querySelectorAll('.pin'), function(p){
+      p.classList.toggle('onplan', !!ids[p.dataset.pin]);
+    });
+  }
+
+  /* 공유받은 일차는 열람이 주 용도 — 스톱 편집 컨트롤을 숨기고 '편집'으로 연다.
+     해제 상태는 세션 한정(WeakSet)이라 저장 데이터에 흔적을 남기지 않는다. */
+  var editUnlocked = typeof WeakSet === 'function' ? new WeakSet() : null;
+  function dayLocked(day){ return !!day.src && !!editUnlocked && !editUnlocked.has(day); }
+
+  function daySummary(day){                // 일차 요약: 이동 합계·미상 구간·부족 구간 수
+    var min = 0, unknown = 0, warn = 0;
+    for (var i = 0; i < day.stops.length - 1; i++){
+      var a = day.stops[i], b = day.stops[i + 1];
+      var manual = a.leg && a.leg.min;
+      var need = manual ? a.leg.min : ((hasXY(a) && hasXY(b)) ? legEst(a, b).fast : null);
+      if (need === null) unknown++;
+      else min += need;
+      var ta = timeMin(a.time), tb = timeMin(b.time);
+      if (ta !== null && tb !== null && (tb < ta || (need !== null && tb - ta < need))) warn++;
+    }
+    return { min: min, unknown: unknown, warn: warn };
+  }
 
   /* 계획 UI 이벤트 — 버튼(click)과 입력(change) 위임 */
   planBox.addEventListener('click', function(e){
@@ -1752,6 +1806,10 @@
       else if (planRouteDi !== null && planRouteDi > di) planRouteDi--;
       legEdit = nearOpen = null;
       savePlan(); renderPlan(); drawRoutes(); return;
+    }
+    if (act === 'dayedit'){                // 공유받은 일차의 열람 잠금 해제 (이 세션 동안)
+      if (editUnlocked) editUnlocked.add(day);
+      renderPlan(); return;
     }
     if (act === 'dayup' || act === 'daydown'){
       var dj = act === 'dayup' ? di - 1 : di + 1;
@@ -1916,6 +1974,7 @@
     if (!t.classList.contains('ps-time')) return;
     var di = +row.dataset.di, si = +row.dataset.si;
     plan.days[di].stops[si].time = t.value;
+    t.classList.toggle('empty', !t.value);   // 미입력만 흐리게 (디자인 가이드 ③)
     savePlan();
     refreshLeg(di, si - 1);
     refreshLeg(di, si);
@@ -2022,6 +2081,15 @@
     });
     if (show.length) fitTo(show);          // fitTo → rebuild → drawRoutes
     else { drawPins(); drawRoutes(); }
+  });
+
+  /* 사용법 안내는 첫 방문용 — 닫으면 기억한다. 상세 안내는 푸터 아코디언이 담당 */
+  var TIPKEY = 'shcafemap.tipclosed.v1';
+  var tipEl = document.getElementById('tip');
+  try { if (localStorage.getItem(TIPKEY)) tipEl.hidden = true; } catch (e) {}
+  document.getElementById('tipx').addEventListener('click', function(){
+    tipEl.hidden = true;
+    try { localStorage.setItem(TIPKEY, '1'); } catch (e) {}
   });
 
   document.getElementById('vclear').addEventListener('click', function(){

@@ -154,7 +154,10 @@ await page.evaluate(() => {
 });
 await page.reload({ waitUntil: 'load' });
 await new Promise(r => setTimeout(r, 900));
-await page.evaluate(() => document.querySelector('#views button[data-v="plan"]').click());
+await page.evaluate(() => {
+  document.getElementById('tipx').click();      // 안내문 닫기 → 아래 reload 후 기억 확인
+  document.querySelector('#views button[data-v="plan"]').click();
+});
 await new Promise(r => setTimeout(r, 300));
 const pl = await page.evaluate(() => ({
   planVisible: getComputedStyle(document.getElementById('plan')).display !== 'none',
@@ -163,17 +166,24 @@ const pl = await page.evaluate(() => ({
   legs: document.querySelectorAll('.pleg').length,
   autoTxt: (document.querySelector('.pleg .pl-txt') || {}).textContent || '',
   manualTxt: [...document.querySelectorAll('.pleg .pl-txt')].map(x => x.textContent).join(' | '),
+  daySum: (document.querySelector('.pd-n') || {}).textContent || '',
 }));
 await page.evaluate(() => document.querySelector('.pd-act button[data-pact="route"]').click());
 await new Promise(r => setTimeout(r, 500));
-const planPaths = await page.evaluate(() =>
-  document.querySelectorAll('#routes path.plan').length);
+const planPaths = await page.evaluate(() => ({
+  paths: document.querySelectorAll('#routes path.plan').length,
+  onplan: document.querySelectorAll('.pin.onplan').length,
+  dimmed: document.getElementById('layer').classList.contains('planrouting'),
+}));
 check('계획: 화면 전환', pl.planVisible);
 check('계획: 일차 2 · 스톱 3 · 구간 2',
       pl.days === 2 && pl.stops === 3 && pl.legs === 2, `${pl.days}/${pl.stops}/${pl.legs}`);
 check('계획: 구간 자동 추정 (거리+교통편)', /(km|m)/.test(pl.autoTxt) && /택시/.test(pl.autoTxt), pl.autoTxt.slice(0, 50));
 check('계획: 수동 구간 우선', /직접 입력/.test(pl.manualTxt) && /항공기/.test(pl.manualTxt), pl.manualTxt.slice(0, 80));
-check('계획: 동선 선 그려짐', planPaths === 1, String(planPaths));
+check('계획: 일차 요약 (이동 합계)', /이동 약/.test(pl.daySum), pl.daySum);
+check('계획: 동선 선 그려짐 + 스톱 핀 강조',
+      planPaths.paths === 1 && planPaths.onplan === 2 && planPaths.dimmed,
+      JSON.stringify(planPaths));
 /* 장소 입력칸 포커스 → 선택 패널. 이미 값이 있어도 전체 목록이 나와야 한다 */
 const psel = await page.evaluate(() => {
   const inp = document.querySelector('.ps-place');
@@ -218,6 +228,14 @@ check('계획: 일차 이동 + 자동 재번호',
       dmove.labels === '1일차,2일차' && dmove.stops0 === 0 && dmove.stops1 === 3,
       JSON.stringify(dmove));
 
+/* 안내문 닫기 기억 (위에서 닫음 → reload 후에도 닫혀 있어야 한다) */
+await page.reload({ waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+const tipHidden = await page.evaluate(() => document.getElementById('tip').hidden);
+check('안내문 닫기 기억 (reload 후)', tipHidden === true);
+await page.evaluate(() => document.querySelector('#views button[data-v="plan"]').click());
+await new Promise(r => setTimeout(r, 300));
+
 /* ── 6. 계획 공유 링크 왕복 (링크 생성 → 새 방문자로 열기 → 추가 확인) ── */
 const shareUrl = await page.evaluate(() => {
   if (navigator.clipboard) navigator.clipboard.writeText = t => { window.__copied = t; return Promise.resolve(); };
@@ -241,14 +259,22 @@ const imp = await page.evaluate(() => {
     leg: st[1] && st[1].leg && st[1].leg.min === 150,
     src: (p.days[0] || {}).src || '',
     tagShown: !!document.querySelector('.pday.shared .pd-src'),
+    locked: !document.querySelector('.pday.shared .ps-tools') &&
+            document.querySelector('.pday.shared .ps-time').disabled,
     planview: document.body.classList.contains('planview'),
     hashCleared: !location.hash.includes('plan='),
   };
+});
+const unlocked = await page.evaluate(() => {
+  document.querySelector('.pday.shared button[data-pact="dayedit"]').click();
+  return !!document.querySelector('.pday.shared .ps-tools') &&
+         !document.querySelector('.pday.shared .ps-time').disabled;
 });
 check('공유: 가져오기 (2일차·3곳·장소 복원·수동 구간)',
       imp.days === 2 && imp.stops === 3 && imp.linked && imp.leg,
       JSON.stringify(imp));
 check('공유: 출처 태그 (보낸 사람·날짜)', /^철수 · \d+\/\d+$/.test(imp.src) && imp.tagShown, imp.src);
+check('공유: 열람 모드 → 편집 해제', imp.locked && unlocked);
 check('공유: 계획 화면 전환 + 해시 정리', imp.planview && imp.hashCleared);
 await page.evaluate(() => localStorage.clear());
 /* 초기(v1 JSON) 링크도 계속 열려야 한다 */
