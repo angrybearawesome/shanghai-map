@@ -364,6 +364,14 @@
     background:rgba(255,255,255,.09); color:#c4d4e3; font-size:12px; cursor:pointer; line-height:1}
   .ps-time.empty{color:#adbcc9}
   #tiles img{filter:saturate(.55) brightness(1.03)}   /* 내 핀·동선이 배경 위로 (3차: .35는 칙칙 → .55 확정) */
+  /* 핀만 한 톤 밝게 — 목록·태그의 브랜드색은 유지. 선택(.on)·방문(.visited)·점선(.est)의
+     상태 표현은 기존 규칙이 우선하도록 :not()으로 평상시 핀에만 적용 */
+  .pin:not(.est):not(.on):not(.visited) i{background:#0a84ff}
+  .pin[data-group="spot"]:not(.est):not(.on):not(.visited) i{background:#00c4b3}
+  .pin[data-group="tea"]:not(.est):not(.on):not(.visited) i{background:#a855f7}
+  .pin.est:not(.on):not(.visited) i{color:#0a84ff; border-color:#0a84ff}
+  .pin[data-group="spot"].est:not(.on):not(.visited) i{color:#00c4b3; border-color:#00c4b3}
+  .pin[data-group="tea"].est:not(.on):not(.visited) i{color:#a855f7; border-color:#a855f7}
   #layer.planrouting .pin:not(.onplan){opacity:.3}
   #layer.planrouting .pin:not(.onplan) .ord{display:none}
 
