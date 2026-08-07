@@ -187,6 +187,35 @@ const psel = await page.evaluate(() => {
 });
 check('계획: 장소 패널 전체 목록', psel.all === exp.total, `${psel.all}/${exp.total}`);
 check('계획: 장소 패널 검색 필터', psel.filtered > 0 && psel.filtered < psel.all, String(psel.filtered));
+
+/* ── 6. 계획 공유 링크 왕복 (링크 생성 → 새 방문자로 열기 → 추가 확인) ── */
+const shareUrl = await page.evaluate(() => {
+  if (navigator.clipboard) navigator.clipboard.writeText = t => { window.__copied = t; return Promise.resolve(); };
+  document.querySelector('button[data-pact="shareplan"]').click();
+  return window.__copied;
+});
+check('공유: 링크 생성', typeof shareUrl === 'string' && shareUrl.includes('#plan='),
+      (shareUrl || '').slice(0, 60) + '…');
+await page.evaluate(() => localStorage.clear());          // 링크를 받은 친구 입장
+await page.goto('about:blank');
+page.once('dialog', d => d.accept());
+await page.goto(shareUrl, { waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+const imp = await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('shcafemap.plan.v1') || '{"days":[]}');
+  const st = (p.days[0] || { stops: [] }).stops;
+  return {
+    days: p.days.length, stops: st.length,
+    linked: st[0] && st[0].placeId === '15' && typeof st[0].lat === 'number',
+    leg: st[1] && st[1].leg && st[1].leg.min === 150,
+    planview: document.body.classList.contains('planview'),
+    hashCleared: !location.hash.includes('plan='),
+  };
+});
+check('공유: 가져오기 (2일차·3곳·장소 복원·수동 구간)',
+      imp.days === 2 && imp.stops === 3 && imp.linked && imp.leg,
+      JSON.stringify(imp));
+check('공유: 계획 화면 전환 + 해시 정리', imp.planview && imp.hashCleared);
 await page.evaluate(() => localStorage.clear());
 
 check('JS 오류 없음', jsErrors.length === 0, jsErrors.slice(0, 2).join('; '));
