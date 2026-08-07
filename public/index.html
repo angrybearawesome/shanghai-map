@@ -384,8 +384,16 @@
   body.two{overflow:hidden}
   body.two #list, body.two #plan{max-width:none; margin:0; grid-column:1; grid-row:7; overflow-y:auto;
     background:var(--bg); border-right:1px solid var(--line)}
-  body.two .pane{display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr);
+  body.two .pane{display:grid; position:relative;
+    grid-template-columns:minmax(0,var(--panelw,420px)) minmax(0,1fr);
     grid-template-rows:auto auto auto auto auto auto minmax(0,1fr) auto; height:100vh}
+  /* 패널·지도 경계의 스플리터 — 드래그로 패널 폭 조절, 더블클릭 초기화 */
+  #splitter{display:none}
+  body.two #splitter{display:block; position:absolute; top:0; bottom:0; z-index:60;
+    left:calc(var(--panelw, 420px) - 4px); width:9px; cursor:col-resize; touch-action:none}
+  body.two #splitter:after{content:''; position:absolute; top:0; bottom:0; left:4px; width:1px;
+    background:transparent; transition:background .15s}
+  body.two #splitter:hover:after, body.two #splitter.dragging:after{background:var(--blue); width:2px}
   body.two header{grid-column:1; grid-row:1}
   body.two #views{grid-column:1; grid-row:2}
   body.two #tabs{grid-column:1; grid-row:3}
@@ -438,6 +446,8 @@
     <div class="rdays" id="rdays"></div>
     <div class="rsteps" id="rsteps" hidden></div>
   </div>
+
+  <div id="splitter" title="드래그해서 패널 폭 조절 · 더블클릭하면 처음 폭으로"></div>
 
   <div id="mapbox">
     <div id="map" tabindex="0">
@@ -2128,6 +2138,42 @@
     });
     if (show.length) fitTo(show);          // fitTo → rebuild → drawRoutes
     else { drawPins(); drawRoutes(); }
+  });
+
+  /* ── 패널 폭 스플리터 (2단 레이아웃 전용) ──
+     경계를 드래그하면 좌측 패널이 넓어지고 지도는 남은 폭을 쓴다.
+     폭은 저장해 두고, 더블클릭하면 처음(420px)으로 돌아간다. */
+  var PWKEY = 'shcafemap.panelw.v1';
+  var splitter = document.getElementById('splitter');
+  function setPanelW(px, save){
+    px = clamp(Math.round(px), 320, Math.max(360, window.innerWidth - 380));
+    document.body.style.setProperty('--panelw', px + 'px');
+    if (save) try { localStorage.setItem(PWKEY, String(px)); } catch (e) {}
+  }
+  try {
+    var pw0 = parseInt(localStorage.getItem(PWKEY), 10);
+    if (pw0) setPanelW(pw0);
+  } catch (e) {}
+  var splitDrag = false;
+  splitter.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    splitDrag = true;
+    splitter.classList.add('dragging');
+    if (splitter.setPointerCapture) splitter.setPointerCapture(e.pointerId);
+  });
+  splitter.addEventListener('pointermove', function(e){
+    if (splitDrag) setPanelW(e.clientX);
+  });
+  splitter.addEventListener('pointerup', function(e){
+    if (!splitDrag) return;
+    splitDrag = false;
+    splitter.classList.remove('dragging');
+    setPanelW(e.clientX, true);
+    rebuild();                             // 지도 폭이 바뀌었으니 타일·핀 재배치
+  });
+  splitter.addEventListener('dblclick', function(){
+    setPanelW(420, true);
+    rebuild();
   });
 
   /* 사용법 안내는 첫 방문용 — 닫으면 기억한다. 상세 안내는 푸터 아코디언이 담당 */
