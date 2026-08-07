@@ -1529,6 +1529,10 @@
     var p = t.split(':');
     return p.length === 2 ? (+p[0]) * 60 + (+p[1]) : null;
   }
+  function gapMin(ta, tb){               // 다음 시간이 새벽 4시 전이면 자정을 넘긴 것으로 본다
+    if (tb < ta && tb < 240) return { gap: tb + 1440 - ta, overnight: true };   // 일일 루트와 같은 경계
+    return { gap: tb - ta, overnight: false };
+  }
   function legEst(a, b){                 // 직선거리 기반 추정 — 시내 이동 참고용
     var d = havKm(a, b), opts = [];
     function add(mode, min){ opts.push({ mode:mode, min:Math.max(1, Math.round(min)) }); }
@@ -1569,12 +1573,12 @@
     var warn = '';
     var ta = timeMin(a.time), tb = timeMin(b.time);
     if (ta !== null && tb !== null){
-      var gap = tb - ta;
+      var g = gapMin(ta, tb), gap = g.gap, nxt = g.overnight ? '(익일)' : '';
       if (gap < 0) warn = '<span class="pl-warn">다음 시간이 더 이릅니다</span>';
       else if (need !== null && gap < need)
-        warn = '<span class="pl-warn">간격 ' + fmtMin(gap) + ' — ' + fmtMin(need - gap) + ' 부족</span>';
+        warn = '<span class="pl-warn">간격 ' + fmtMin(gap) + nxt + ' — ' + fmtMin(need - gap) + ' 부족</span>';
       else if (need !== null)
-        warn = '<span class="pl-ok">간격 ' + fmtMin(gap) +
+        warn = '<span class="pl-ok">간격 ' + fmtMin(gap) + nxt +
                (gap > need ? ' · 여유 ' + fmtMin(gap - need) : ' · 여유 없음') + '</span>';
     }
     return '<div class="pleg" data-di="' + di + '" data-si="' + si + '"><span class="pl-arrow">↓</span>' +
@@ -1769,7 +1773,10 @@
       if (need === null) unknown++;
       else min += need;
       var ta = timeMin(a.time), tb = timeMin(b.time);
-      if (ta !== null && tb !== null && (tb < ta || (need !== null && tb - ta < need))) warn++;
+      if (ta !== null && tb !== null){
+        var g = gapMin(ta, tb);
+        if (g.gap < 0 || (need !== null && g.gap < need)) warn++;
+      }
     }
     return { min: min, unknown: unknown, warn: warn };
   }

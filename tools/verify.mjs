@@ -149,7 +149,10 @@ await page.evaluate(() => {
         placeId: '16', lat: 31.228588, lon: 121.498233, leg: { min: 150, mode: '항공기' } },
       { time: '14:00', name: '인천공항', placeId: null, lat: null, lon: null, leg: null },
     ] },
-    { stops: [] },
+    { stops: [   /* 자정 넘김: 21:00 → 00:30은 익일로 계산돼야 한다 */
+      { time: '21:00', name: '건국 보취 호텔', placeId: '15', lat: 31.232507, lon: 121.477803, leg: null },
+      { time: '00:30', name: '십육포 부두', placeId: '16', lat: 31.228588, lon: 121.498233, leg: null },
+    ] },
   ] }));
 });
 await page.reload({ waitUntil: 'load' });
@@ -167,6 +170,8 @@ const pl = await page.evaluate(() => ({
   autoTxt: (document.querySelector('.pleg .pl-txt') || {}).textContent || '',
   manualTxt: [...document.querySelectorAll('.pleg .pl-txt')].map(x => x.textContent).join(' | '),
   daySum: (document.querySelector('.pd-n') || {}).textContent || '',
+  overnight: [...document.querySelectorAll('.pleg')].some(el => /익일/.test(el.textContent)),
+  falseOrderErr: [...document.querySelectorAll('.pleg')].some(el => /이릅니다/.test(el.textContent)),
 }));
 await page.evaluate(() => document.querySelector('.pd-act button[data-pact="route"]').click());
 await new Promise(r => setTimeout(r, 500));
@@ -176,11 +181,13 @@ const planPaths = await page.evaluate(() => ({
   dimmed: document.getElementById('layer').classList.contains('planrouting'),
 }));
 check('계획: 화면 전환', pl.planVisible);
-check('계획: 일차 2 · 스톱 3 · 구간 2',
-      pl.days === 2 && pl.stops === 3 && pl.legs === 2, `${pl.days}/${pl.stops}/${pl.legs}`);
+check('계획: 일차 2 · 스톱 5 · 구간 3',
+      pl.days === 2 && pl.stops === 5 && pl.legs === 3, `${pl.days}/${pl.stops}/${pl.legs}`);
 check('계획: 구간 자동 추정 (거리+교통편)', /(km|m)/.test(pl.autoTxt) && /택시/.test(pl.autoTxt), pl.autoTxt.slice(0, 50));
 check('계획: 수동 구간 우선', /직접 입력/.test(pl.manualTxt) && /항공기/.test(pl.manualTxt), pl.manualTxt.slice(0, 80));
 check('계획: 일차 요약 (이동 합계)', /이동 약/.test(pl.daySum), pl.daySum);
+check('계획: 자정 넘김 익일 계산 (21:00→00:30)', pl.overnight && !pl.falseOrderErr,
+      `익일=${pl.overnight} 역순오류=${pl.falseOrderErr}`);
 check('계획: 동선 선 그려짐 + 스톱 핀 강조',
       planPaths.paths === 1 && planPaths.onplan === 2 && planPaths.dimmed,
       JSON.stringify(planPaths));
@@ -225,7 +232,7 @@ const dmove = await page.evaluate(() => {
   return out;
 });
 check('계획: 일차 이동 + 자동 재번호',
-      dmove.labels === '1일차,2일차' && dmove.stops0 === 0 && dmove.stops1 === 3,
+      dmove.labels === '1일차,2일차' && dmove.stops0 === 2 && dmove.stops1 === 3,
       JSON.stringify(dmove));
 
 /* 안내문 닫기 기억 (위에서 닫음 → reload 후에도 닫혀 있어야 한다) */
