@@ -187,6 +187,21 @@ const psel = await page.evaluate(() => {
 });
 check('계획: 장소 패널 전체 목록', psel.all === exp.total, `${psel.all}/${exp.total}`);
 check('계획: 장소 패널 검색 필터', psel.filtered > 0 && psel.filtered < psel.all, String(psel.filtered));
+/* 분류 탭: '차' 탭을 누르면 tea 그룹만 보이고, '전체'로 돌아오면 원복 */
+const ptab = await page.evaluate(() => {
+  const inp = document.querySelector('.ps-place');
+  inp.value = ''; inp.focus(); inp.dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('.psel [data-pgroup="tea"]')
+    .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  const tea = document.querySelectorAll('.psel button[data-pick]').length;
+  document.querySelector('.psel [data-pgroup="all"]')
+    .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  const all = document.querySelectorAll('.psel button[data-pick]').length;
+  inp.blur();
+  return { tea, all };
+});
+check('계획: 장소 패널 분류 탭', ptab.tea === exp.tea && ptab.all === exp.total,
+      `차 ${ptab.tea}/${exp.tea} · 전체 ${ptab.all}/${exp.total}`);
 
 /* ── 6. 계획 공유 링크 왕복 (링크 생성 → 새 방문자로 열기 → 추가 확인) ── */
 const shareUrl = await page.evaluate(() => {

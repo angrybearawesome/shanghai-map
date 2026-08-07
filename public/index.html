@@ -292,6 +292,12 @@
     padding:7px 8px; border-radius:8px; font-family:var(--sans); font-size:12.5px; color:var(--ink);
     text-align:left; white-space:nowrap; overflow:hidden}
   .psel button:hover{background:#f2f6fb}
+  .psel-tabs{position:sticky; top:-4px; margin:-4px -4px 4px; padding:8px 8px 7px; display:flex; gap:5px;
+    background:#fff; border-bottom:1px solid var(--line-2); border-radius:11px 11px 0 0; z-index:1}
+  .psel-tabs button{flex:1; display:block; width:auto; border:1px solid var(--line); border-radius:20px;
+    background:#f8fafc; color:#5f7183; font-size:11px; font-weight:600; padding:5px 2px; text-align:center}
+  .psel-tabs button b{font-family:var(--mono); font-weight:600; opacity:.65}
+  .psel-tabs button.on{background:var(--navy); border-color:var(--navy); color:#fff}
   .psel .pid{flex:0 0 auto; width:24px; height:24px; border-radius:7px; background:var(--blue-soft); color:var(--blue);
     font-family:var(--mono); font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center}
   .psel [data-group="spot"] .pid{background:var(--teal-soft); color:var(--teal)}
@@ -1819,6 +1825,8 @@
      짧은 이름 목록을 직접 띄운다. 이미 고른 이름이면 전체 목록을 보여줘서
      바로 다른 곳으로 갈아탈 수 있다. */
   var psel = null;
+  var pselGroup = 'all';                 // 마지막에 고른 분류 탭 — 연속 추가가 빨라진다
+  var PSEL_TABS = [['all', '전체'], ['cafe', '카페'], ['spot', '스팟'], ['tea', '차']];
   function shortName(s){ return s.name.replace(/\s*\(.*/, ''); }
   function closePsel(){ if (psel && psel.parentNode) psel.parentNode.removeChild(psel); psel = null; }
   function openPsel(inp){
@@ -1833,15 +1841,24 @@
     }
     var ql = q.toLowerCase();
     var list = spots.filter(function(s){
+      if (pselGroup !== 'all' && s.group !== pselGroup) return false;
       return !ql || (s.name + ' ' + s.kw + ' ' + s.tag).toLowerCase().indexOf(ql) >= 0;
     });
+    var tabs = '<div class="psel-tabs">' + PSEL_TABS.map(function(t){
+      var n = t[0] === 'all' ? spots.length
+            : spots.filter(function(s){ return s.group === t[0]; }).length;
+      return '<button type="button" data-pgroup="' + t[0] + '"' +
+             (pselGroup === t[0] ? ' class="on"' : '') + '>' + t[1] + ' <b>' + n + '</b></button>';
+    }).join('') + '</div>';
     psel = document.createElement('div');
     psel.className = 'psel';
-    psel.innerHTML = list.length ? list.map(function(s){
+    psel.innerHTML = tabs + (list.length ? list.map(function(s){
       return '<button type="button" data-pick="' + s.id + '" data-group="' + s.group + '">' +
              '<span class="pid">' + s.id + '</span>' + esc(shortName(s)) +
              '<span class="ptag">' + esc(s.tag) + '</span></button>';
-    }).join('') : '<span class="pnone">지도에 없는 장소예요 — 이대로 두면 자유 입력으로 저장됩니다.</span>';
+    }).join('') : '<span class="pnone">' + (ql
+      ? '이 분류에 없는 장소예요 — 다른 탭을 보거나, 이대로 두면 자유 입력으로 저장됩니다.'
+      : '이 분류에 등록된 장소가 없어요.') + '</span>');
     row.appendChild(psel);
   }
   planBox.addEventListener('focusin', function(e){
@@ -1851,6 +1868,14 @@
     if (e.target.classList && e.target.classList.contains('ps-place')) setTimeout(closePsel, 150);
   });
   planBox.addEventListener('mousedown', function(e){   // blur보다 먼저 잡아야 선택이 산다
+    var g = e.target.closest ? e.target.closest('[data-pgroup]') : null;
+    if (g){                              // 분류 탭 — 입력 포커스를 유지한 채 목록만 갈아끼운다
+      e.preventDefault();
+      pselGroup = g.dataset.pgroup;
+      var gi = g.closest('.pstop') ? g.closest('.pstop').querySelector('.ps-place') : null;
+      if (gi) openPsel(gi);
+      return;
+    }
     var b = e.target.closest ? e.target.closest('[data-pick]') : null;
     if (!b) return;
     e.preventDefault();
