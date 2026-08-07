@@ -195,7 +195,7 @@ const shareUrl = await page.evaluate(() => {
   return window.__copied;
 });
 check('공유: 링크 생성', typeof shareUrl === 'string' && shareUrl.includes('#plan='),
-      (shareUrl || '').slice(0, 60) + '…');
+      `${(shareUrl || '').length}자 · ${(shareUrl || '').slice(0, 60)}…`);
 await page.evaluate(() => localStorage.clear());          // 링크를 받은 친구 입장
 await page.goto('about:blank');
 page.once('dialog', d => d.accept());
@@ -216,6 +216,22 @@ check('공유: 가져오기 (2일차·3곳·장소 복원·수동 구간)',
       imp.days === 2 && imp.stops === 3 && imp.linked && imp.leg,
       JSON.stringify(imp));
 check('공유: 계획 화면 전환 + 해시 정리', imp.planview && imp.hashCleared);
+await page.evaluate(() => localStorage.clear());
+/* 초기(v1 JSON) 링크도 계속 열려야 한다 */
+const v1url = await page.evaluate(() =>
+  location.href.split('#')[0] + '#plan=' +
+  btoa(unescape(encodeURIComponent(JSON.stringify({ v: 1, d: [[{ t: '09:00', i: '10' }]] }))))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
+await page.goto('about:blank');
+page.once('dialog', d => d.accept());
+await page.goto(v1url, { waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+const v1 = await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('shcafemap.plan.v1') || '{"days":[]}');
+  const st = (p.days[0] || { stops: [] }).stops[0] || {};
+  return { days: p.days.length, id: st.placeId };
+});
+check('공유: v1 링크 하위 호환', v1.days === 1 && v1.id === '10', JSON.stringify(v1));
 await page.evaluate(() => localStorage.clear());
 
 check('JS 오류 없음', jsErrors.length === 0, jsErrors.slice(0, 2).join('; '));

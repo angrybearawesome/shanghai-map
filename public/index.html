@@ -1618,14 +1618,32 @@
     while (s.length % 4) s += '=';
     return decodeURIComponent(escape(atob(s)));
   }
-  function shareData(){
-    return { v:1, d: plan.days.map(function(day){
+  /* v2 초압축 포맷 — 링크를 짧게 유지한다. 일차는 ';', 스톱은 ',',
+     스톱 = [HHMM][@장소id | ~이름][+분[:교통편]]. 예: 1540@18,1710@15
+     이름·교통편에서 구분자(; , @ ~ +)는 공백으로 치환한다. */
+  function cleanTxt(x){ return String(x).replace(/[;,@~+]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function shareCompact(){
+    return '2.' + plan.days.map(function(day){
       return day.stops.map(function(st){
+        var s = '';
+        if (st.time) s += st.time.replace(':', '');
+        if (st.placeId && byId(st.placeId)) s += '@' + st.placeId;
+        else if (st.name) s += '~' + cleanTxt(st.name);
+        if (st.leg && st.leg.min) s += '+' + st.leg.min + (st.leg.mode ? ':' + cleanTxt(st.leg.mode) : '');
+        return s;
+      }).join(',');
+    }).join(';');
+  }
+  function parseCompact(str){
+    return { v:2, d: str.split(';').map(function(dstr){
+      if (!dstr) return [];
+      return dstr.split(',').map(function(tok){
         var o = {};
-        if (st.time) o.t = st.time;
-        if (st.placeId && byId(st.placeId)) o.i = st.placeId;
-        else if (st.name) o.n = st.name;
-        if (st.leg && st.leg.min) o.g = [st.leg.min, st.leg.mode || ''];
+        var m = /^(\d{3,4})?(?:@(\d+)|~([^+]*))?(?:\+(\d+)(?::(.*))?)?$/.exec(tok) || [];
+        if (m[1]){ var t = ('0000' + m[1]).slice(-4); o.t = t.slice(0, 2) + ':' + t.slice(2); }
+        if (m[2]) o.i = m[2];
+        if (m[3]) o.n = m[3];
+        if (m[4]) o.g = [+m[4], m[5] || ''];
         return o;
       });
     })};
@@ -1699,7 +1717,7 @@
     }
     if (act === 'copyplan'){ copyAddr(planSummary(), '계획을 복사했어요.'); return; }
     if (act === 'shareplan'){
-      var url = location.href.split('#')[0] + '#plan=' + b64e(JSON.stringify(shareData()));
+      var url = location.href.split('#')[0] + '#plan=' + b64e(shareCompact());
       copyAddr(url, '공유 링크를 복사했어요 — 메신저로 보내면 여는 사람의 계획에 추가돼요.');
       return;
     }
@@ -1902,7 +1920,11 @@
     if (!m) return;
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
     var data = null;
-    try { data = JSON.parse(b64d(m[1])); } catch (e) {}
+    try {
+      var raw = b64d(m[1]);
+      if (raw.charAt(0) === '{') data = JSON.parse(raw);              // 초기(v1 JSON) 링크 호환
+      else if (raw.slice(0, 2) === '2.') data = parseCompact(raw.slice(2));
+    } catch (e) {}
     if (!data || !data.d || !data.d.length){ toast('공유된 계획을 읽지 못했어요.'); return; }
     var days = importDays(data);
     var n = days.reduce(function(a, d){ return a + d.stops.length; }, 0);
