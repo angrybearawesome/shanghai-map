@@ -139,6 +139,43 @@ check('재방문: 순번 병기', /·/.test(rt.badge || ''), rt.badge);
 check('재방문: 기록 줄 2개', rt.rows === 2, String(rt.rows));
 await page.evaluate(() => localStorage.clear());
 
+/* ── 5. 여행 계획 스모크 (일차 2 + 자동 추정 + 수동 구간 + 동선) ── */
+await page.evaluate(() => {
+  localStorage.setItem('shcafemap.plan.v1', JSON.stringify({ days: [
+    { stops: [
+      { time: '10:00', name: '건국 보취 호텔 (建国铂萃 · 난징루 보행가)',
+        placeId: '15', lat: 31.232507, lon: 121.477803, leg: null },
+      { time: '11:00', name: '십육포 부두 (十六铺码头)',
+        placeId: '16', lat: 31.228588, lon: 121.498233, leg: { min: 150, mode: '항공기' } },
+      { time: '14:00', name: '인천공항', placeId: null, lat: null, lon: null, leg: null },
+    ] },
+    { stops: [] },
+  ] }));
+});
+await page.reload({ waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+await page.evaluate(() => document.querySelector('#views button[data-v="plan"]').click());
+await new Promise(r => setTimeout(r, 300));
+const pl = await page.evaluate(() => ({
+  planVisible: getComputedStyle(document.getElementById('plan')).display !== 'none',
+  days: document.querySelectorAll('.pday').length,
+  stops: document.querySelectorAll('.pstop').length,
+  legs: document.querySelectorAll('.pleg').length,
+  autoTxt: (document.querySelector('.pleg .pl-txt') || {}).textContent || '',
+  manualTxt: [...document.querySelectorAll('.pleg .pl-txt')].map(x => x.textContent).join(' | '),
+}));
+await page.evaluate(() => document.querySelector('.pd-act button[data-pact="route"]').click());
+await new Promise(r => setTimeout(r, 500));
+const planPaths = await page.evaluate(() =>
+  document.querySelectorAll('#routes path.plan').length);
+check('계획: 화면 전환', pl.planVisible);
+check('계획: 일차 2 · 스톱 3 · 구간 2',
+      pl.days === 2 && pl.stops === 3 && pl.legs === 2, `${pl.days}/${pl.stops}/${pl.legs}`);
+check('계획: 구간 자동 추정 (거리+교통편)', /(km|m)/.test(pl.autoTxt) && /택시/.test(pl.autoTxt), pl.autoTxt.slice(0, 50));
+check('계획: 수동 구간 우선', /직접 입력/.test(pl.manualTxt) && /항공기/.test(pl.manualTxt), pl.manualTxt.slice(0, 80));
+check('계획: 동선 선 그려짐', planPaths === 1, String(planPaths));
+await page.evaluate(() => localStorage.clear());
+
 check('JS 오류 없음', jsErrors.length === 0, jsErrors.slice(0, 2).join('; '));
 
 const shot = path.join(ROOT, 'tools', 'last-verify.png');

@@ -34,6 +34,12 @@
        border-radius:0 9px 9px 0; padding:9px 11px; font-size:12px; line-height:1.55; color:#d7e4f1}
   .tip b{color:#fff}
 
+  /* ── 화면 전환 (지도 | 계획) ── */
+  #views{display:flex; background:var(--navy-2)}
+  #views button{flex:1; appearance:none; border:0; background:none; cursor:pointer; padding:11px 4px;
+    font-family:var(--sans); font-size:12.5px; font-weight:700; color:#7f93a6; transition:color .15s}
+  #views button[aria-selected="true"]{color:#fff; box-shadow:inset 0 -2.5px 0 var(--blue)}
+
   /* ── 탭 ── */
   #tabs{display:flex; background:var(--surface); border-bottom:1px solid var(--line)}
   #tabs button{flex:1; appearance:none; border:0; background:none; cursor:pointer; padding:13px 4px;
@@ -244,6 +250,7 @@
   #routes{position:absolute; top:0; left:0; width:1px; height:1px; overflow:visible}
   #routes path{fill:none; stroke-width:2.5; stroke-dasharray:7 5; stroke-linecap:round;
     stroke-linejoin:round; opacity:.8}
+  #routes path.plan{stroke-dasharray:2 7; stroke-width:3}
   #layer.routing .pin:not(.onroute){opacity:.35}
   #layer.routing .pin:not(.onroute) .ord{display:none}
 
@@ -260,6 +267,68 @@
   #manual textarea{width:100%; height:64px; font-size:14px; font-family:var(--sans); border:1px solid var(--line);
     border-radius:9px; padding:9px; resize:none; background:#f8fafc}
 
+  /* ── 여행 계획 ── */
+  #plan{display:none; padding:13px 12px 8px; max-width:760px; margin:0 auto}
+  body.planview #plan{display:block}
+  body.planview #tabs, body.planview .legend, body.planview #recbar,
+  body.planview #routebar, body.planview #list{display:none}
+  .pday{background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:13px; margin:0 0 12px}
+  .pd-head{display:flex; align-items:center; gap:8px; margin-bottom:11px}
+  .pd-head h2{margin:0; font-size:14.5px; font-weight:700; letter-spacing:-.2px}
+  .pd-head .pd-n{font-family:var(--mono); font-size:10px; color:#93a4b3; letter-spacing:.05em}
+  .pd-act{margin-left:auto; display:flex; gap:6px}
+  .pd-act button{padding:5px 10px; border-radius:8px; border:1px solid #ccdcec; background:#fff; color:#37587f;
+    font-family:var(--sans); font-size:11.5px; font-weight:600; cursor:pointer; white-space:nowrap}
+  .pd-act button.on{background:var(--blue); border-color:var(--blue); color:#fff}
+  .pd-act button[data-pact="delday"]{color:#a06060; border-color:#e8d5d5}
+  .pstop{display:flex; align-items:center; gap:7px; margin:6px 0}
+  .ps-ord{flex:0 0 auto; width:26px; height:26px; border-radius:8px; background:#f1f5f9; color:#8e9eac;
+    font-family:var(--mono); font-size:11px; font-weight:600; border:0; padding:0;
+    display:flex; align-items:center; justify-content:center}
+  button.ps-ord{cursor:pointer}
+  .ps-ord.link{background:var(--blue-soft); color:var(--blue)}
+  .ps-ord.link[data-group="spot"]{background:var(--teal-soft); color:var(--teal)}
+  .ps-ord.link[data-group="tea"]{background:var(--plum-soft); color:var(--plum)}
+  .ps-time,.ps-place{border:1px solid var(--line); border-radius:9px; padding:7px 8px; font-family:var(--sans);
+    font-size:13px; background:#f8fafc; color:var(--ink); min-width:0}
+  .ps-time{flex:0 0 88px}
+  .ps-place{flex:1}
+  .ps-tools{flex:0 0 auto; display:flex; gap:3px}
+  .ps-tools button{width:26px; height:26px; border:1px solid var(--line); border-radius:7px; background:#fff;
+    color:#6b7c8c; font-size:12px; cursor:pointer; padding:0}
+  .ps-tools button:disabled{opacity:.3; cursor:default}
+  .ps-tools button[data-pact="near"]{width:auto; padding:0 7px; font-size:11px; font-weight:600;
+    color:var(--blue); border-color:#c6dbf6}
+  .pleg{display:flex; align-items:center; flex-wrap:wrap; gap:5px 8px; margin:2px 0 2px 12px; padding:5px 8px 5px 10px;
+    border-left:2px dotted #b9c8d6; font-size:11.5px; color:#5f7183}
+  .pleg b{font-family:var(--mono); font-weight:600; color:#37587f}
+  .pleg i{font-style:normal; color:#93a4b3}
+  .pl-arrow{color:#b9c8d6}
+  .pl-warn{font-weight:600; color:#b4232c; background:#fdeaea; border-radius:6px; padding:1px 7px}
+  .pl-ok{color:#3e7d43; background:#e9f5ea; border-radius:6px; padding:1px 7px}
+  .pl-edit, .pleg.edit button{border:0; background:none; padding:0 2px; font-size:11px; font-weight:600;
+    color:#8093a2; cursor:pointer; text-decoration:underline; text-underline-offset:2px}
+  .pleg.edit{gap:6px}
+  .pleg .pl-min,.pleg .pl-mode{border:1px solid var(--line); border-radius:7px; padding:5px 7px;
+    font-size:12px; background:#fff; font-family:var(--sans)}
+  .pleg .pl-min{width:64px}
+  .pleg .pl-mode{flex:1; min-width:90px}
+  .pnear{display:flex; flex-direction:column; gap:4px; margin:2px 0 8px 33px; padding:8px 9px;
+    background:var(--blue-soft); border:1px solid #d7e6fb; border-radius:10px; font-size:11.5px; color:#37587f}
+  .pnear > span{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+  .pnear b{font-family:var(--mono)}
+  .pn-act{margin-left:auto; display:flex; gap:4px}
+  .pn-act button, .pn-amap{border:1px solid #c6dbf6; border-radius:7px; background:#fff; color:var(--blue);
+    font-family:var(--sans); font-size:10.5px; font-weight:600; padding:2px 8px; cursor:pointer}
+  .pn-amap{align-self:flex-start; margin-top:3px}
+  .pn-none{color:#7d93ab}
+  .pd-empty{margin:4px 2px 10px; font-size:12.5px; color:var(--mut)}
+  .padd{display:block; width:100%; margin-top:9px; padding:9px 0; border:1px dashed #c0cfdd; border-radius:10px;
+    background:#f8fafc; color:#4a6076; font-family:var(--sans); font-size:12.5px; font-weight:600; cursor:pointer}
+  .pglobal{display:flex; gap:8px; margin:2px 0 10px}
+  .pglobal .padd{margin-top:0}
+  .pglobal .padd.day{border-style:solid; border-color:var(--blue); color:var(--blue); background:var(--blue-soft)}
+
   [hidden]{display:none !important}
   :focus-visible{outline:2px solid var(--blue); outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
@@ -267,16 +336,17 @@
   /* ── 2단 레이아웃 (넓은 화면에서만 JS가 body.two를 켠다) ── */
   #list{max-width:760px; margin:0 auto}
   body.two{overflow:hidden}
-  body.two #list{max-width:none; margin:0; grid-column:1; grid-row:6; overflow-y:auto;
+  body.two #list, body.two #plan{max-width:none; margin:0; grid-column:1; grid-row:7; overflow-y:auto;
     background:var(--bg); border-right:1px solid var(--line)}
   body.two .pane{display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr);
-    grid-template-rows:auto auto auto auto auto minmax(0,1fr) auto; height:100vh}
+    grid-template-rows:auto auto auto auto auto auto minmax(0,1fr) auto; height:100vh}
   body.two header{grid-column:1; grid-row:1}
-  body.two #tabs{grid-column:1; grid-row:2}
-  body.two .legend{grid-column:1; grid-row:3}
-  body.two #recbar{grid-column:1; grid-row:4}
-  body.two #routebar{grid-column:1; grid-row:5}
-  body.two footer{grid-column:1; grid-row:7; background:var(--surface); border-top:1px solid var(--line);
+  body.two #views{grid-column:1; grid-row:2}
+  body.two #tabs{grid-column:1; grid-row:3}
+  body.two .legend{grid-column:1; grid-row:4}
+  body.two #recbar{grid-column:1; grid-row:5}
+  body.two #routebar{grid-column:1; grid-row:6}
+  body.two footer{grid-column:1; grid-row:8; background:var(--surface); border-top:1px solid var(--line);
     border-right:1px solid var(--line); padding:8px 14px; max-height:34vh; overflow-y:auto}
   body.two footer .fnote{border:0; padding:0; background:none}
   body.two #mapbox{grid-column:2; grid-row:1/-1; position:static}
@@ -293,6 +363,11 @@
     <p class="sub" id="subline">SHANGHAI · SUZHOU · WUXI</p>
     <p class="tip">핀이나 카드를 누르면 지도가 움직여요. 주소를 확인하지 못한 <b id="t-off">–</b>곳은 지도에 없고 목록에만 있으니 <b>고덕에서 이름 검색</b>을 쓰세요. 주소 오른쪽 아이콘은 <b>지도에서 열기 · 이름으로 검색 · 주소 복사</b>입니다. 앱이 안 열리면 주소를 복사해 고덕지도(高德地图) 검색창에 붙여넣는 게 가장 확실합니다.</p>
   </header>
+
+  <nav id="views">
+    <button data-v="map" aria-selected="true">지도</button>
+    <button data-v="plan" aria-selected="false">계획</button>
+  </nav>
 
   <nav id="tabs">
     <button data-g="all" aria-selected="true">전체 <b>–</b></button>
@@ -525,6 +600,11 @@
 
 </main>
 
+<section id="plan">
+  <div id="pdays"></div>
+  <datalist id="placelist"></datalist>
+</section>
+
   <footer>
     <details>
       <summary>지도 안내 · 핀 신뢰도 · 방문 기록</summary>
@@ -533,7 +613,8 @@
         <b>좌표계</b> — 중국 지도 기준(GCJ-02)이라 고덕지도·애플지도와는 맞고, 구글지도로 열면 조금 밀려 보일 수 있습니다.<br>
         <b>지도 배경</b> — 온라인일 때만 표시되고, 안 되면 격자 배경으로 바뀝니다. 핀·목록·주소 복사는 인터넷 없이도 동작합니다.<br>
         <b>방문 기록</b> — 별을 누르면 방문한 순서대로 번호가 붙습니다. 같은 곳을 다른 날 또 가면 기록이 한 줄 더 쌓이고 번호가 3·9처럼 나란히 붙습니다(숙소처럼 매일 오가는 곳). 오늘 기록은 별을 다시 눌러 취소하고, 지난 날 기록은 카드나 팝업의 기록 줄에서 낱개로 취소합니다. 기록은 이 브라우저에만 저장되니 친구 폰의 기록과는 따로 쌓입니다.<br>
-        <b>일일 루트</b> — 방문한 날짜별로 기록 바 아래 1일차·2일차 칩이 생기고, 누르면 그날 다닌 순서가 지도에 점선으로 이어집니다. 점선은 방문 순서를 이은 직선일 뿐 실제 걷거나 탄 경로는 아닙니다. 새벽 4시 전의 방문은 전날 루트로 칩니다.
+        <b>일일 루트</b> — 방문한 날짜별로 기록 바 아래 1일차·2일차 칩이 생기고, 누르면 그날 다닌 순서가 지도에 점선으로 이어집니다. 점선은 방문 순서를 이은 직선일 뿐 실제 걷거나 탄 경로는 아닙니다. 새벽 4시 전의 방문은 전날 루트로 칩니다.<br>
+        <b>여행 계획</b> — 상단 '계획' 탭에서 일차별로 시간·장소를 넣으면 구간 거리와 도보·지하철·택시 예상 시간이 자동으로 붙습니다. 예상은 직선거리 기반 참고용이고, 비행기·기차 구간은 '수정'으로 직접 입력하세요. 장소를 자동완성으로 고르면 지도의 장소와 연결되고, '지도에 동선'을 누르면 그날 계획이 파란 점선으로 그려집니다. 계획도 이 브라우저에만 저장됩니다.
       </div>
     </details>
     <span class="sig">CAFE MAP · SINGLE FILE · NO API KEY</span>
@@ -846,8 +927,7 @@
   function drawRoutes(){
     routesSvg.innerHTML = '';
     layer.classList.toggle('routing', !!(activeRoute && activeRoute !== 'all'));
-    if (!activeRoute) return;
-    routeDays().forEach(function(d, i){
+    if (activeRoute) routeDays().forEach(function(d, i){
       if (activeRoute !== 'all' && d.key !== activeRoute) return;
       var pts = routeSpots(d).map(function(s){
         var p = project(s.lat, s.lon, zoom);
@@ -859,6 +939,7 @@
       path.setAttribute('stroke', routeColor(i));
       routesSvg.appendChild(path);
     });
+    drawPlanRoute();                       // 계획 탭의 일차 동선 미리보기 (파란 점선)
   }
 
   function refreshVisitUI(){
@@ -1117,13 +1198,14 @@
     document.getElementById('manual-t').value = text;
     manual.classList.add('on');
   }
-  function copyAddr(text){
+  function copyAddr(text, msg){
+    msg = msg || (text.length > 40 ? '복사했어요.' : '주소를 복사했어요 · ' + text);
     if (navigator.clipboard && window.isSecureContext){
-      navigator.clipboard.writeText(text).then(function(){ toast(text.length > 40 ? '방문 기록을 복사했어요.' : '주소를 복사했어요 · ' + text); },
-                                               function(){ legacyCopy(text); });
-    } else legacyCopy(text);
+      navigator.clipboard.writeText(text).then(function(){ toast(msg); },
+                                               function(){ legacyCopy(text, msg); });
+    } else legacyCopy(text, msg);
   }
-  function legacyCopy(text){
+  function legacyCopy(text, msg){
     var ta = document.createElement('textarea');
     ta.value = text;
     ta.setAttribute('readonly', '');
@@ -1134,7 +1216,7 @@
     var ok = false;
     try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     document.body.removeChild(ta);
-    if (ok) toast(text.length > 40 ? '방문 기록을 복사했어요.' : '주소를 복사했어요 · ' + text);
+    if (ok) toast(msg);
     else manualCopy(text);
   }
 
@@ -1353,6 +1435,326 @@
     scaleEl.querySelector('span').style.width = px + 'px';
   }
 
+  /* ───── 여행 계획 ─────
+     출발 전에 일차별 동선을 짜는 기능. localStorage(shcafemap.plan.v1)에
+     {days:[{stops:[{time,name,placeId,lat,lon,leg}]}]}로 저장한다.
+     leg는 '이 스톱 → 다음 스톱' 구간의 수동 입력값({min,mode})이고 스톱을
+     이동하면 같이 따라간다. 비어 있으면 두 좌표의 직선거리 × 보정계수로
+     도보·지하철·택시 소요 시간을 추정해 보여준다 (참고용).
+     자동 추정값은 저장하지 않고 렌더링 때마다 계산한다. */
+  var PKEY = 'shcafemap.plan.v1';
+  var plan = { days: [] };
+  var planRouteDi = null;                // 지도에 동선을 그리는 중인 일차 index
+  var legEdit = null;                    // 'di-si' — 수동 입력 폼이 열린 구간
+  var nearOpen = null;                   // 'di-si' — 주변 패널이 열린 스톱
+  var planBox = document.getElementById('plan'),
+      pdaysBox = document.getElementById('pdays');
+
+  try {
+    var praw = localStorage.getItem(PKEY);
+    if (praw){ var pv = JSON.parse(praw); if (pv && pv.days) plan = pv; }
+  } catch (e) {}
+
+  function savePlan(){
+    try { localStorage.setItem(PKEY, JSON.stringify(plan)); }
+    catch (e) { storageOK = false; }
+  }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function hasXY(st){ return typeof st.lat === 'number' && typeof st.lon === 'number'; }
+  function havKm(a, b){
+    var R = 6371, dLa = toRad(b.lat - a.lat), dLo = toRad(b.lon - a.lon);
+    var h = Math.sin(dLa / 2) * Math.sin(dLa / 2) +
+            Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function fmtMin(m){
+    m = Math.max(1, Math.round(m));
+    return m >= 60 ? Math.floor(m / 60) + '시간' + (m % 60 ? ' ' + (m % 60) + '분' : '') : m + '분';
+  }
+  function fmtKm(d){ return d < 1 ? Math.round(d * 1000) + 'm' : (Math.round(d * 10) / 10) + 'km'; }
+  function timeMin(t){                   // 'HH:MM' → 분. 없으면 null
+    if (!t) return null;
+    var p = t.split(':');
+    return p.length === 2 ? (+p[0]) * 60 + (+p[1]) : null;
+  }
+  function legEst(a, b){                 // 직선거리 기반 추정 — 시내 이동 참고용
+    var d = havKm(a, b), opts = [];
+    function add(mode, min){ opts.push({ mode:mode, min:Math.max(1, Math.round(min)) }); }
+    if (d <= 2.5) add('도보', d * 1.35 / 4.5 * 60);
+    if (d >= 1.2 && d <= 45) add('지하철', 11 + d * 1.3 / 34 * 60);
+    add('택시', 4 + d * 1.4 / (d < 15 ? 22 : 50) * 60);
+    var fast = opts[0].min;
+    opts.forEach(function(o){ if (o.min < fast) fast = o.min; });
+    return { d:d, opts:opts, fast:fast, far:d > 60 };
+  }
+
+  function legHTML(day, di, si){
+    var a = day.stops[si], b = day.stops[si + 1], key = di + '-' + si;
+    var manual = a.leg && a.leg.min;
+    var est = (!manual && hasXY(a) && hasXY(b)) ? legEst(a, b) : null;
+    var need = manual ? a.leg.min : (est ? est.fast : null);
+
+    if (legEdit === key){
+      return '<div class="pleg edit" data-di="' + di + '" data-si="' + si + '">' +
+        '<input type="number" class="pl-min" min="1" inputmode="numeric" placeholder="분" value="' +
+          (manual ? a.leg.min : (est ? est.fast : '')) + '">' +
+        '<input type="text" class="pl-mode" placeholder="교통편 (예: 공항버스)" value="' +
+          esc(manual ? a.leg.mode : '') + '">' +
+        '<button data-pact="legsave">저장</button>' +
+        (manual ? '<button data-pact="legauto">자동으로</button>' : '') +
+        '<button data-pact="legcancel">취소</button></div>';
+    }
+    var body;
+    if (manual){
+      body = '<b>' + fmtMin(a.leg.min) + '</b>' + (a.leg.mode ? ' · ' + esc(a.leg.mode) : '') + ' <i>직접 입력</i>';
+    } else if (est){
+      body = '<b>' + fmtKm(est.d) + '</b> · ' +
+             est.opts.map(function(o){ return o.mode + ' ' + fmtMin(o.min); }).join(' · ') +
+             (est.far ? ' <i>장거리 — 고속철 확인</i>' : '');
+    } else {
+      body = '<i>거리를 계산할 수 없어요 — 소요 시간을 직접 입력하세요</i>';
+    }
+    var warn = '';
+    var ta = timeMin(a.time), tb = timeMin(b.time);
+    if (ta !== null && tb !== null){
+      var gap = tb - ta;
+      if (gap < 0) warn = '<span class="pl-warn">다음 시간이 더 이릅니다</span>';
+      else if (need !== null && gap < need)
+        warn = '<span class="pl-warn">간격 ' + fmtMin(gap) + ' — ' + fmtMin(need - gap) + ' 부족</span>';
+      else if (need !== null)
+        warn = '<span class="pl-ok">간격 ' + fmtMin(gap) +
+               (gap > need ? ' · 여유 ' + fmtMin(gap - need) : ' · 여유 없음') + '</span>';
+    }
+    return '<div class="pleg" data-di="' + di + '" data-si="' + si + '"><span class="pl-arrow">↓</span>' +
+           '<span class="pl-txt">' + body + '</span>' + warn +
+           '<button class="pl-edit" data-pact="legedit" title="소요 시간·교통편 직접 입력">수정</button></div>';
+  }
+
+  function nearHTML(st, di, si){
+    var list = spots.map(function(s){ return { s:s, d:havKm(st, s) }; })
+      .filter(function(x){ return x.d <= 3 && x.s.id !== st.placeId; })
+      .sort(function(x, y){ return x.d - y.d; }).slice(0, 8);
+    var rows = list.length ? list.map(function(x){
+      return '<span><b>' + x.s.id + '</b> ' + esc(x.s.name.replace(/\s*\(.*/, '')) + ' · ' + fmtKm(x.d) +
+        '<span class="pn-act"><button data-pact="nearsee" data-id="' + x.s.id + '">지도</button>' +
+        '<button data-pact="nearadd" data-id="' + x.s.id + '">다음에 추가</button></span></span>';
+    }).join('') : '<span class="pn-none">3km 안에 등록된 장소가 없어요. 아래 버튼으로 고덕에서 찾아보세요.</span>';
+    return '<div class="pnear" data-di="' + di + '" data-si="' + si + '">' + rows +
+      '<button class="pn-amap" data-pact="nearamap">고덕지도에서 주변 관광지 검색</button></div>';
+  }
+
+  function stopHTML(day, di, si){
+    var st = day.stops[si], n = day.stops.length;
+    var s = st.placeId ? byId(st.placeId) : null;
+    var badge = s
+      ? '<button class="ps-ord link" data-pact="see" data-group="' + s.group +
+        '" title="지도 ' + s.id + '번 — 지도에서 보기">' + (si + 1) + '</button>'
+      : '<span class="ps-ord">' + (si + 1) + '</span>';
+    var near = (nearOpen === di + '-' + si && hasXY(st)) ? nearHTML(st, di, si) : '';
+    return '<div class="pstop" data-di="' + di + '" data-si="' + si + '">' + badge +
+      '<input type="time" class="ps-time" aria-label="시간" value="' + esc(st.time || '') + '">' +
+      '<input type="text" class="ps-place" list="placelist" placeholder="장소 이름" value="' + esc(st.name || '') + '">' +
+      '<span class="ps-tools">' +
+        (hasXY(st) ? '<button data-pact="near" title="주변 장소 추천">주변</button>' : '') +
+        '<button data-pact="up"' + (si === 0 ? ' disabled' : '') + ' aria-label="위로">↑</button>' +
+        '<button data-pact="down"' + (si === n - 1 ? ' disabled' : '') + ' aria-label="아래로">↓</button>' +
+        '<button data-pact="delstop" aria-label="삭제">✕</button></span></div>' + near;
+  }
+
+  function dayHTML(day, di){
+    var inner = '';
+    for (var i = 0; i < day.stops.length; i++){
+      inner += stopHTML(day, di, i);
+      if (i < day.stops.length - 1) inner += legHTML(day, di, i);
+    }
+    if (!day.stops.length) inner = '<p class="pd-empty">아래 버튼으로 첫 장소를 추가하세요. 시간·장소를 넣으면 구간 정보가 자동으로 붙습니다.</p>';
+    return '<section class="pday" data-di="' + di + '">' +
+      '<div class="pd-head"><h2>' + (di + 1) + '일차</h2><span class="pd-n">' + day.stops.length + '곳</span>' +
+      '<span class="pd-act">' +
+        '<button data-pact="route"' + (planRouteDi === di ? ' class="on"' : '') + '>지도에 동선</button>' +
+        '<button data-pact="delday">삭제</button></span></div>' +
+      inner +
+      '<button class="padd" data-pact="addstop">＋ 장소 추가</button></section>';
+  }
+
+  function renderPlan(){
+    pdaysBox.innerHTML = plan.days.map(dayHTML).join('') +
+      '<div class="pglobal"><button class="padd day" data-pact="addday">＋ 일차 추가</button>' +
+      (plan.days.some(function(d){ return d.stops.length; })
+        ? '<button class="padd" data-pact="copyplan">계획 복사</button>' : '') + '</div>';
+  }
+
+  function planSummary(){
+    var out = [];
+    plan.days.forEach(function(day, di){
+      out.push((di + 1) + '일차');
+      day.stops.forEach(function(st, si){
+        out.push('  ' + (st.time || '--:--') + ' ' + (st.name || '(장소 미정)'));
+        if (si < day.stops.length - 1){
+          var nx = day.stops[si + 1];
+          if (st.leg && st.leg.min)
+            out.push('    ↓ ' + fmtMin(st.leg.min) + (st.leg.mode ? ' · ' + st.leg.mode : ''));
+          else if (hasXY(st) && hasXY(nx)){
+            var est = legEst(st, nx);
+            out.push('    ↓ ' + fmtKm(est.d) + ' · ' +
+              est.opts.map(function(o){ return o.mode + ' ' + fmtMin(o.min); }).join(' · '));
+          }
+        }
+      });
+    });
+    return '상하이 여행 계획\n' + out.join('\n');
+  }
+
+  function drawPlanRoute(){
+    if (planRouteDi === null || !plan.days[planRouteDi]) return;
+    var pts = plan.days[planRouteDi].stops.filter(hasXY).map(function(st){
+      var p = project(st.lat, st.lon, zoom);
+      return (p.x - frame.x) + ' ' + (p.y - frame.y);
+    });
+    if (pts.length < 2) return;
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M' + pts.join(' L'));
+    path.setAttribute('class', 'plan');
+    path.setAttribute('stroke', '#1a5fbd');
+    routesSvg.appendChild(path);
+  }
+
+  /* 계획 UI 이벤트 — 버튼(click)과 입력(change) 위임 */
+  planBox.addEventListener('click', function(e){
+    var b = e.target.closest('[data-pact]');
+    if (!b) return;
+    var act = b.dataset.pact;
+    var holder = b.closest('[data-si]'), dayEl = b.closest('[data-di]');
+    var di = dayEl ? +dayEl.dataset.di : null;
+    var si = holder ? +holder.dataset.si : null;
+    var day = di !== null ? plan.days[di] : null;
+    var st = (day && si !== null) ? day.stops[si] : null;
+    var key = di + '-' + si;
+
+    if (act === 'addday'){
+      plan.days.push({ stops: [] });
+      savePlan(); renderPlan(); return;
+    }
+    if (act === 'copyplan'){ copyAddr(planSummary(), '계획을 복사했어요.'); return; }
+    if (!day) return;
+
+    if (act === 'delday'){
+      if (day.stops.length && !window.confirm((di + 1) + '일차 계획 ' + day.stops.length + '곳을 지울까요?')) return;
+      plan.days.splice(di, 1);
+      if (planRouteDi === di) planRouteDi = null;
+      else if (planRouteDi !== null && planRouteDi > di) planRouteDi--;
+      legEdit = nearOpen = null;
+      savePlan(); renderPlan(); drawRoutes(); return;
+    }
+    if (act === 'route'){
+      planRouteDi = (planRouteDi === di) ? null : di;
+      renderPlan(); drawRoutes();
+      if (planRouteDi !== null){
+        var xy = day.stops.filter(hasXY);
+        if (xy.length >= 2) fitTo(xy);          // fitTo → rebuild → drawRoutes
+        else toast('좌표가 있는 장소가 2곳 이상이어야 선이 그려져요. 자동완성으로 지도 장소를 골라보세요.');
+      }
+      return;
+    }
+    if (act === 'addstop'){
+      day.stops.push({ time:'', name:'', placeId:null, lat:null, lon:null, leg:null });
+      savePlan(); renderPlan();
+      var rows = pdaysBox.querySelectorAll('.pday[data-di="' + di + '"] .ps-place');
+      if (rows.length) rows[rows.length - 1].focus();
+      return;
+    }
+    if (!st) return;
+
+    if (act === 'delstop'){
+      day.stops.splice(si, 1);
+      legEdit = nearOpen = null;
+      savePlan(); renderPlan(); drawRoutes(); return;
+    }
+    if (act === 'up' || act === 'down'){
+      var j = act === 'up' ? si - 1 : si + 1;
+      if (j < 0 || j >= day.stops.length) return;
+      day.stops[si] = day.stops[j]; day.stops[j] = st;
+      legEdit = nearOpen = null;
+      savePlan(); renderPlan(); drawRoutes(); return;
+    }
+    if (act === 'near'){
+      nearOpen = (nearOpen === key) ? null : key;
+      legEdit = null;
+      renderPlan(); return;
+    }
+    if (act === 'see' || act === 'nearsee'){
+      var id = act === 'see' ? st.placeId : b.dataset.id;
+      if (id) select(id, false);
+      return;
+    }
+    if (act === 'nearadd'){
+      var s = byId(b.dataset.id);
+      if (!s) return;
+      day.stops.splice(si + 1, 0, { time:'', name:s.name, placeId:s.id, lat:s.lat, lon:s.lon, leg:null });
+      nearOpen = null;
+      savePlan(); renderPlan(); drawRoutes(); return;
+    }
+    if (act === 'nearamap'){
+      if (hasXY(st)) openUrl('https://uri.amap.com/search?keyword=' + encodeURIComponent('景点') +
+        '&center=' + st.lon + ',' + st.lat + '&coordinate=gaode&callnative=1&src=cafemap');
+      return;
+    }
+    if (act === 'legedit'){ legEdit = key; nearOpen = null; renderPlan(); return; }
+    if (act === 'legcancel'){ legEdit = null; renderPlan(); return; }
+    if (act === 'legauto'){
+      st.leg = null; legEdit = null;
+      savePlan(); renderPlan(); return;
+    }
+    if (act === 'legsave'){
+      var box = b.closest('.pleg');
+      var min = parseInt(box.querySelector('.pl-min').value, 10);
+      var mode = box.querySelector('.pl-mode').value.trim();
+      if (!(min > 0)){ toast('소요 시간(분)을 숫자로 입력하세요.'); return; }
+      st.leg = { min:min, mode:mode };
+      legEdit = null;
+      savePlan(); renderPlan(); return;
+    }
+  });
+
+  planBox.addEventListener('change', function(e){
+    var t = e.target, row = t.closest('.pstop');
+    if (!row) return;
+    var st = plan.days[+row.dataset.di].stops[+row.dataset.si];
+    if (t.classList.contains('ps-time')) st.time = t.value;
+    else if (t.classList.contains('ps-place')){
+      st.name = t.value.trim();
+      var m = null;
+      for (var i = 0; i < spots.length; i++) if (spots[i].name === st.name){ m = spots[i]; break; }
+      if (m){ st.placeId = m.id; st.lat = m.lat; st.lon = m.lon; }
+      else { st.placeId = null; st.lat = null; st.lon = null; }
+    } else return;
+    savePlan(); renderPlan(); drawRoutes();
+    if (!storageOK && !warned){
+      warned = true;
+      toast('이 환경에서는 저장되지 않아요. 새로고침하면 사라집니다.');
+    }
+  });
+
+  /* 화면 전환: 지도 ↔ 계획. 지도는 두 화면 모두에서 보인다 */
+  var viewsNav = document.getElementById('views');
+  viewsNav.addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if (!b) return;
+    [].forEach.call(viewsNav.children, function(x){
+      x.setAttribute('aria-selected', x === b ? 'true' : 'false');
+    });
+    document.body.classList.toggle('planview', b.dataset.v === 'plan');
+    closePop();
+    if (b.dataset.v === 'plan') renderPlan();
+  });
+
+  document.getElementById('placelist').innerHTML =
+    spots.map(function(s){ return '<option value="' + esc(s.name) + '">'; }).join('');
+
   /* ───── 시작 ───── */
   function setLayout(){                  // 폰에서 2단으로 넘어가는 사고 방지
     var screenW = (window.screen && window.screen.width) ? window.screen.width : window.innerWidth;
@@ -1373,7 +1775,7 @@
   document.getElementById('vexport').addEventListener('click', function(){
     var txt = visitSummary();
     if (!txt) { toast('아직 기록된 방문이 없어요.'); return; }
-    copyAddr(txt);
+    copyAddr(txt, '방문 기록을 복사했어요.');
   });
   /* 루트 칩: 누르면 그날 경로를 지도에 그리고 화면을 맞춘다. 다시 누르면 해제 */
   rbar.addEventListener('click', function(e){
