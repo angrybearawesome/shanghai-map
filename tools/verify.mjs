@@ -197,8 +197,9 @@ const shareUrl = await page.evaluate(() => {
 check('공유: 링크 생성', typeof shareUrl === 'string' && shareUrl.includes('#plan='),
       `${(shareUrl || '').length}자 · ${(shareUrl || '').slice(0, 60)}…`);
 await page.evaluate(() => localStorage.clear());          // 링크를 받은 친구 입장
+const onDialog = d => d.accept(d.type() === 'prompt' ? '철수' : undefined);
+page.on('dialog', onDialog);                              // confirm 수락 + 이름 프롬프트에 '철수'
 await page.goto('about:blank');
-page.once('dialog', d => d.accept());
 await page.goto(shareUrl, { waitUntil: 'load' });
 await new Promise(r => setTimeout(r, 900));
 const imp = await page.evaluate(() => {
@@ -208,6 +209,8 @@ const imp = await page.evaluate(() => {
     days: p.days.length, stops: st.length,
     linked: st[0] && st[0].placeId === '15' && typeof st[0].lat === 'number',
     leg: st[1] && st[1].leg && st[1].leg.min === 150,
+    src: (p.days[0] || {}).src || '',
+    tagShown: !!document.querySelector('.pday.shared .pd-src'),
     planview: document.body.classList.contains('planview'),
     hashCleared: !location.hash.includes('plan='),
   };
@@ -215,6 +218,7 @@ const imp = await page.evaluate(() => {
 check('공유: 가져오기 (2일차·3곳·장소 복원·수동 구간)',
       imp.days === 2 && imp.stops === 3 && imp.linked && imp.leg,
       JSON.stringify(imp));
+check('공유: 출처 태그 (보낸 사람·날짜)', /^철수 · \d+\/\d+$/.test(imp.src) && imp.tagShown, imp.src);
 check('공유: 계획 화면 전환 + 해시 정리', imp.planview && imp.hashCleared);
 await page.evaluate(() => localStorage.clear());
 /* 초기(v1 JSON) 링크도 계속 열려야 한다 */
@@ -223,7 +227,6 @@ const v1url = await page.evaluate(() =>
   btoa(unescape(encodeURIComponent(JSON.stringify({ v: 1, d: [[{ t: '09:00', i: '10' }]] }))))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
 await page.goto('about:blank');
-page.once('dialog', d => d.accept());
 await page.goto(v1url, { waitUntil: 'load' });
 await new Promise(r => setTimeout(r, 900));
 const v1 = await page.evaluate(() => {
@@ -232,6 +235,7 @@ const v1 = await page.evaluate(() => {
   return { days: p.days.length, id: st.placeId };
 });
 check('공유: v1 링크 하위 호환', v1.days === 1 && v1.id === '10', JSON.stringify(v1));
+page.off('dialog', onDialog);
 await page.evaluate(() => localStorage.clear());
 
 check('JS 오류 없음', jsErrors.length === 0, jsErrors.slice(0, 2).join('; '));
