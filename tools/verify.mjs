@@ -174,6 +174,19 @@ check('계획: 일차 2 · 스톱 3 · 구간 2',
 check('계획: 구간 자동 추정 (거리+교통편)', /(km|m)/.test(pl.autoTxt) && /택시/.test(pl.autoTxt), pl.autoTxt.slice(0, 50));
 check('계획: 수동 구간 우선', /직접 입력/.test(pl.manualTxt) && /항공기/.test(pl.manualTxt), pl.manualTxt.slice(0, 80));
 check('계획: 동선 선 그려짐', planPaths === 1, String(planPaths));
+/* 장소 입력칸 포커스 → 선택 패널. 이미 값이 있어도 전체 목록이 나와야 한다 */
+const psel = await page.evaluate(() => {
+  const inp = document.querySelector('.ps-place');
+  inp.focus();
+  const all = document.querySelectorAll('.psel button[data-pick]').length;
+  inp.value = '커피';
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+  const filtered = document.querySelectorAll('.psel button[data-pick]').length;
+  inp.blur();
+  return { all, filtered };
+});
+check('계획: 장소 패널 전체 목록', psel.all === exp.total, `${psel.all}/${exp.total}`);
+check('계획: 장소 패널 검색 필터', psel.filtered > 0 && psel.filtered < psel.all, String(psel.filtered));
 await page.evaluate(() => localStorage.clear());
 
 check('JS 오류 없음', jsErrors.length === 0, jsErrors.slice(0, 2).join('; '));
