@@ -219,6 +219,35 @@ const ptab = await page.evaluate(() => {
 });
 check('계획: 장소 패널 분류 탭', ptab.tea === exp.tea && ptab.all === exp.total,
       `차 ${ptab.tea}/${exp.tea} · 전체 ${ptab.all}/${exp.total}`);
+/* 회귀: 타이핑(dirty) → 드롭다운 선택 직후, 제거된 입력칸의 늦은 change가 선택을 덮어쓰면 안 된다.
+   스티키 지도에 좌표 클릭이 먹히지 않게 포커스·키보드·합성 mousedown으로 재현한다 */
+await page.evaluate(() => {
+  const i = document.querySelector('.pstop[data-di="0"][data-si="2"] .ps-place');
+  i.focus(); i.select();
+});
+await page.keyboard.type('오피에스', { delay: 20 });     // 진짜 키 입력 → dirty 플래그
+await new Promise(r => setTimeout(r, 250));
+await page.evaluate(() => {                              // blur 타이머가 닫았어도 패널 재오픈
+  const i = document.querySelector('.pstop[data-di="0"][data-si="2"] .ps-place');
+  i.focus(); i.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await new Promise(r => setTimeout(r, 100));
+await page.evaluate(() => document.querySelector('.psel button[data-pick="01"]')
+  .dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+await new Promise(r => setTimeout(r, 300));
+await page.evaluate(() =>                                // 다른 스톱 이동으로 재렌더 유발
+  document.querySelector('.pstop[data-di="0"][data-si="0"] button[data-pact="down"]').click());
+await new Promise(r => setTimeout(r, 300));
+const picked = await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('shcafemap.plan.v1'));
+  const st = p.days[0].stops.find(s => s.placeId === '01');
+  return { linked: !!st, name: st ? st.name : '(끊김)' };
+});
+check('계획: 드롭다운 선택이 늦은 change에 안 덮임', picked.linked && /오피에스/.test(picked.name), picked.name);
+await page.evaluate(() =>                                // 순서 원복
+  document.querySelector('.pstop[data-di="0"][data-si="1"] button[data-pact="up"]').click());
+await new Promise(r => setTimeout(r, 200));
+
 /* 일차 ↑↓ 이동: 순서가 바뀌고 번호는 위치에서 자동 재계산 (검사 후 원복) */
 const dmove = await page.evaluate(() => {
   document.querySelector('.pday[data-di="0"] button[data-pact="daydown"]').click();

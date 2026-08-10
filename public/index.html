@@ -2095,6 +2095,10 @@
     var row = b.closest('.pstop'), s = byId(b.dataset.pick);
     if (!row || !s) return;
     var st = plan.days[+row.dataset.di].stops[+row.dataset.si];
+    /* 타이핑 중이던 입력칸이 재렌더링으로 제거될 때 브라우저가 옛 타이핑 값으로
+       change를 늦게 쏘아 방금 고른 선택을 덮어쓴다 — 값을 먼저 맞춰서 무해하게 만든다 */
+    var pickInp = row.querySelector('.ps-place');
+    if (pickInp) pickInp.value = shortName(s);
     st.placeId = s.id; st.lat = s.lat; st.lon = s.lon; st.name = shortName(s);
     closePsel();
     savePlan(); renderPlan(); drawRoutes();
