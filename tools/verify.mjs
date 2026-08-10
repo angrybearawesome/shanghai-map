@@ -344,6 +344,88 @@ check('공유: v1 링크 하위 호환', v1.days === 1 && v1.id === '10', JSON.s
 page.off('dialog', onDialog);
 await page.evaluate(() => localStorage.clear());
 
+/* ── 7. 사용자 장소 (클로드 없이 추가 · 숨기기 · v3 공유 동봉) ── */
+await page.goto(url, { waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+await page.evaluate(() => {                        // 위치 없이 추가
+  document.getElementById('upadd').click();
+  document.getElementById('up-name').value = '검증용 카페';
+  document.querySelector('input[name="upg"][value="cafe"]').checked = true;
+  document.getElementById('up-save').click();
+});
+await new Promise(r => setTimeout(r, 300));
+await page.evaluate(() => {                        // 지도 찍기 픽 모드
+  document.getElementById('upadd').click();
+  document.getElementById('up-name').value = '검증용 스팟';
+  document.getElementById('up-pick').click();
+});
+await new Promise(r => setTimeout(r, 600));
+const mr = await page.evaluate(() => {            // 지도 사각형 실측 후 그 안의 빈 곳을 클릭
+  const r = document.getElementById('map').getBoundingClientRect();
+  return { x: r.x, y: r.y, w: r.width, h: r.height };
+});
+for (const [fx, fy] of [[0.15, 0.3], [0.85, 0.18], [0.3, 0.55]]) {
+  await page.mouse.click(mr.x + mr.w * fx, mr.y + mr.h * fy);
+  await new Promise(r => setTimeout(r, 250));
+  if (await page.evaluate(() => document.getElementById('upform').classList.contains('on'))) break;
+}
+await page.evaluate(() => document.getElementById('up-save').click());
+await new Promise(r => setTimeout(r, 300));
+const up = await page.evaluate(() => ({
+  cnt: (JSON.parse(localStorage.getItem('shcafemap.uplaces.v1')) || []).length,
+  upCards: document.querySelectorAll('.card.uplace').length,
+  upPins: document.querySelectorAll('.pin.uplace').length,
+  officialN: document.getElementById('n-all').textContent,
+  mineHead: !document.querySelector('.grouphead[data-group="mine"]').hidden,
+}));
+check('내 장소: 추가 (목록만 1 + 지도 찍기 1)',
+      up.cnt === 2 && up.upCards === 2 && up.upPins === 1 && up.mineHead, JSON.stringify(up));
+check('내 장소: 공식 숫자 불변', up.officialN === String(exp.total), `${up.officialN}/${exp.total}`);
+const hid = await page.evaluate(() => {            // 정식 장소 숨기기/복원
+  const before = document.querySelectorAll('.pin').length;
+  document.querySelector('.card[data-id="01"] a[data-act="hide"]').click();
+  const after = document.querySelectorAll('.pin').length;
+  const cardHidden = document.querySelector('.card[data-id="01"]').hidden;
+  document.getElementById('unhideall').click();
+  return { before, after, cardHidden, restored: document.querySelectorAll('.pin').length };
+});
+check('정식 장소: 숨기기/복원', hid.after === hid.before - 1 && hid.cardHidden && hid.restored === hid.before,
+      JSON.stringify(hid));
+/* v3 공유: 내 장소를 계획에 넣어 공유 → 새 방문자에게 장소까지 자동 추가 */
+const upUid = await page.evaluate(() => {
+  const u = (JSON.parse(localStorage.getItem('shcafemap.uplaces.v1')) || []).find(x => typeof x.lat === 'number');
+  return u ? u.uid : null;
+});
+check('내 장소: 지도 찍기 좌표 저장', !!upUid, String(upUid));
+await page.evaluate(uid => {
+  localStorage.setItem('shcafemap.plan.v1', JSON.stringify({ days: [{ stops: [
+    { time: '10:00', name: '검증용 스팟', placeId: uid, lat: 31.2, lon: 121.4, leg: null }] }] }));
+}, upUid);
+await page.reload({ waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+const url3 = await page.evaluate(() => {
+  navigator.clipboard.writeText = t => { window.__copied = t; return Promise.resolve(); };
+  document.querySelector('#views button[data-v="plan"]').click();
+  document.querySelector('button[data-pact="shareplan"]').click();
+  return window.__copied;
+});
+check('내 장소: v3 공유 링크 생성', typeof url3 === 'string' && url3.includes('#plan='), (url3 || '').slice(0, 50));
+await page.evaluate(() => localStorage.clear());   // 링크를 받은 새 방문자
+const onDialog3 = d => d.accept(d.type() === 'prompt' ? 'MJ' : undefined);
+page.on('dialog', onDialog3);
+await page.goto('about:blank');
+await page.goto(url3, { waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 900));
+const v3 = await page.evaluate(() => ({
+  up: (JSON.parse(localStorage.getItem('shcafemap.uplaces.v1')) || []).length,
+  linked: ((JSON.parse(localStorage.getItem('shcafemap.plan.v1')) || { days: [] }).days[0] || { stops: [{}] }).stops[0].placeId || '',
+  pin: document.querySelectorAll('.pin.uplace').length,
+}));
+page.off('dialog', onDialog3);
+check('내 장소: v3 공유 → 자동 추가 + 계획 연결', v3.up === 1 && /^u/.test(v3.linked) && v3.pin === 1,
+      JSON.stringify(v3));
+await page.evaluate(() => localStorage.clear());
+
 check('JS 오류 없음', jsErrors.length === 0, jsErrors.slice(0, 2).join('; '));
 
 const shot = path.join(ROOT, 'tools', 'last-verify.png');

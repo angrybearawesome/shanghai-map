@@ -384,6 +384,34 @@
   #layer.planrouting .pin:not(.onplan){opacity:.3}
   #layer.planrouting .pin:not(.onplan) .ord{display:none}
 
+  /* ── 사용자 장소(내 장소) · 숨기기 (docs/02-design/user-places.design.md) ── */
+  .card.uplace .idx{background:#eef2f6; color:#5b6b7a; box-shadow:inset 0 0 0 1px #dfe7ee}
+  .card.uplace .c-tag{color:#5b6b7a; background:#eef2f6}
+  .pin.uplace:not(.on):not(.visited):not(.est) i{background:#64758b}
+  .pin.uplace.est:not(.on):not(.visited) i{color:#64758b; border-color:#64758b}
+  .pin.uplace.on i{background:#46566a}
+  .fmenu{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:2px 0 10px}
+  .fmenu button, #hiddenbar button{padding:6px 12px; border-radius:9px; border:1px solid #ccdcec;
+    background:#fff; color:#37587f; font-family:var(--sans); font-size:12px; font-weight:600; cursor:pointer}
+  #hiddenbar{display:inline-flex; align-items:center; gap:7px; font-size:11.5px; color:#8896a3}
+  #hiddenbar b{font-family:var(--mono)}
+  #upform{position:fixed; inset:0; z-index:300; background:rgba(15,30,44,.5); display:none;
+    align-items:center; justify-content:center; padding:22px}
+  #upform.on{display:flex}
+  #upform > div{background:#fff; border-radius:14px; padding:18px; width:100%; max-width:360px}
+  #upform h3{margin:0 0 4px; font-size:15px}
+  .up-hint{margin:0 0 12px; font-size:11.5px; color:var(--mut); line-height:1.5}
+  #upform input[type="text"], #upform textarea{width:100%; border:1px solid var(--line); border-radius:9px;
+    padding:9px; font-family:var(--sans); font-size:14px; background:#f8fafc; resize:none}
+  #upform textarea{height:64px; margin-top:8px}
+  .up-groups{display:flex; gap:14px; margin-top:9px; font-size:13px}
+  .up-groups label{display:inline-flex; align-items:center; gap:5px; cursor:pointer}
+  .up-loc{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px;
+    font-size:12px; color:var(--mut)}
+  .up-loc button{padding:5px 11px; border-radius:8px; border:1px solid #c6dbf6; background:#fff;
+    color:var(--blue); font-family:var(--sans); font-size:11.5px; font-weight:600; cursor:pointer}
+  body.picking #map{cursor:crosshair; box-shadow:inset 0 0 0 3px var(--blue)}
+
   [hidden]{display:none !important}
   :focus-visible{outline:2px solid var(--blue); outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
@@ -743,6 +771,8 @@
     <div class="links"><a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a></div>
   </article>
 
+  <div id="uplist"></div>
+
 </main>
 
 <section id="plan">
@@ -750,6 +780,10 @@
 </section>
 
   <footer>
+    <div class="fmenu">
+      <button id="upadd">＋ 장소 추가</button>
+      <span id="hiddenbar" hidden>숨긴 장소 <b id="hidcount">0</b>곳 <button id="unhideall">모두 복원</button></span>
+    </div>
     <details>
       <summary>지도 안내 · 핀 신뢰도 · 방문 기록</summary>
       <div class="fnote">
@@ -767,6 +801,27 @@
 </div>
 
 <div id="toast" role="status"></div>
+<div id="upform"><div>
+  <h3>장소 추가</h3>
+  <p class="up-hint">이 브라우저의 '내 장소'로 저장됩니다. 계획에 넣어 공유하면 친구 지도에도 추가돼요.</p>
+  <input id="up-name" type="text" placeholder="장소 이름 (필수)" autocomplete="off">
+  <div class="up-groups">
+    <label><input type="radio" name="upg" value="cafe"> 카페</label>
+    <label><input type="radio" name="upg" value="spot" checked> 스팟</label>
+    <label><input type="radio" name="upg" value="tea"> 차</label>
+  </div>
+  <textarea id="up-memo" placeholder="메모 (선택) — 팁·주의사항"></textarea>
+  <div class="up-loc">
+    <span id="up-loctxt">위치: 미지정 (목록에만 표시)</span>
+    <button id="up-pick" type="button">지도에서 찍기</button>
+    <button id="up-locclear" type="button" hidden>위치 지우기</button>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn go" id="up-save">추가</button>
+    <button class="btn cp" id="up-cancel">취소</button>
+  </div>
+</div></div>
+
 <div id="manual"><div>
   <p>복사가 막혀 있어요. 아래 주소를 길게 눌러 복사해 주세요.</p>
   <textarea id="manual-t" readonly></textarea>
@@ -895,6 +950,7 @@
       kw: card.dataset.kw || '',
       fix: card.dataset.fix || 'unknown',
       nopin: card.dataset.nopin === '1',
+      user: card.classList.contains('uplace'),
       flag: card.querySelector('.flag') ? card.querySelector('.flag').textContent.trim() : '',
       name: card.querySelector('.c-name').textContent.trim(),
       tag: card.querySelector('.c-tag').textContent.trim(),
@@ -915,16 +971,18 @@
   }
 
   function paintCounts(){
+    /* 공식 숫자는 파일에 있는 정식 카드 기준 — 브라우저별 '내 장소'는 제외한다 */
+    var pub = spots.filter(function(s){ return !s.user; });
     var byBucket = { ok:[], est:[], off:[] };
-    spots.forEach(function(s){ byBucket[bucket(s)].push(s); });
-    var cafe = spots.filter(function(s){ return s.group === 'cafe'; });
-    var spot = spots.filter(function(s){ return s.group === 'spot'; });
-    var tea  = spots.filter(function(s){ return s.group === 'tea'; });
+    pub.forEach(function(s){ byBucket[bucket(s)].push(s); });
+    var cafe = pub.filter(function(s){ return s.group === 'cafe'; });
+    var spot = pub.filter(function(s){ return s.group === 'spot'; });
+    var tea  = pub.filter(function(s){ return s.group === 'tea'; });
 
     function put(id, val){ var el = document.getElementById(id); if (el) el.textContent = val; }
-    document.title = '상하이 여행 지도 · ' + spots.length + '곳';
-    put('n-all', spots.length);
-    put('n-total', spots.length);
+    document.title = '상하이 여행 지도 · ' + pub.length + '곳';
+    put('n-all', pub.length);
+    put('n-total', pub.length);
     put('n-ok', byBucket.ok.length);
     put('n-est', byBucket.est.length);
     put('n-off', byBucket.off.length);
@@ -936,14 +994,14 @@
     function pad2(n){ return (n < 10 ? '0' : '') + n; }
     put('subline', 'SHANGHAI · SUZHOU · WUXI / CAFE ' + pad2(cafe.length) + ' · SPOT ' + pad2(spot.length) + ' · TEA ' + pad2(tea.length));
 
-    var counts = { all:spots.length, cafe:cafe.length, spot:spot.length, tea:tea.length };
+    var counts = { all:pub.length, cafe:cafe.length, spot:spot.length, tea:tea.length };
     [].forEach.call(document.querySelectorAll('#tabs button'), function(b){
       var n = b.querySelector('b');
       if (n) n.textContent = counts[b.dataset.g];
     });
 
     [].forEach.call(document.querySelectorAll('.grouphead'), function(head){
-      var list = spots.filter(function(s){ return s.group === head.dataset.group; });
+      var list = pub.filter(function(s){ return s.group === head.dataset.group; });
       var el = head.querySelector('.grange');
       if (!el) return;
       if (!list.length){ el.textContent = '0'; return; }
@@ -1184,16 +1242,25 @@
     if (s.fix === 'ok') return iconBtn('amap', true) + iconBtn('copy', false);
     return iconBtn('amap', true) + iconBtn('search', false) + iconBtn('copy', false);
   }
-  spots.forEach(function(s){
+  function injectExtras(s){                // 카드에 아이콘·별·숨기기 링크 주입 (정적/사용자 카드 공용)
     var row = s.el.querySelector('.addr-row');
-    if (row) row.insertAdjacentHTML('beforeend', actionsFor(s));
+    if (row && !row.querySelector('.ico')) row.insertAdjacentHTML('beforeend', actionsFor(s));
     var head = s.el.querySelector('.c-head');
-    if (head) head.insertAdjacentHTML('beforeend',
+    if (head && !head.querySelector('.star')) head.insertAdjacentHTML('beforeend',
       '<button class="star" data-act="visit" aria-pressed="false"><span class="ord"></span>' + STAR + '</button>');
-  });
+    if (!s.user){
+      var lk = s.el.querySelector('.links');
+      if (lk && !lk.querySelector('[data-act="hide"]')) lk.insertAdjacentHTML('beforeend',
+        '<a href="#" data-act="hide">숨기기</a>');
+    }
+  }
+  spots.forEach(injectExtras);
+  var baseCards = cards.slice(), baseSpots = spots.slice();   // 정식 카드 스냅샷 — 내 장소는 여기에 합류한다
   paintVisits();
   function byId(id){ for (var i = 0; i < spots.length; i++) if (spots[i].id === id) return spots[i]; return null; }
-  function shown(){ return spots.filter(function(s){ return group === 'all' || s.group === group; }); }
+  function shown(){
+    return spots.filter(function(s){ return (group === 'all' || s.group === group) && !hiddenIds[s.id]; });
+  }
   function pinned(){ return shown().filter(function(s){ return !s.nopin; }); }
 
   function drawPins(){
@@ -1210,12 +1277,13 @@
       var p = project(s.lat, s.lon, zoom);
       var b = document.createElement('button');
       b.className = 'pin' + (s.fix === 'ok' ? '' : ' est') + (s.id === activeId ? ' on' : '') +
-                    (pinOrd[s.id] ? ' visited' : '') + (routeIds[s.id] ? ' onroute' : '');
+                    (pinOrd[s.id] ? ' visited' : '') + (routeIds[s.id] ? ' onroute' : '') +
+                    (s.user ? ' uplace' : '');
       b.dataset.pin = s.id;
       b.dataset.group = s.group;
       b.style.left = (p.x - frame.x) + 'px';
       b.style.top = (p.y - frame.y) + 'px';
-      b.innerHTML = '<i><em>' + s.id + '</em></i><span class="ord">' +
+      b.innerHTML = '<i><em>' + (s.user ? '✦' : s.id) + '</em></i><span class="ord">' +
                     (pinOrd[s.id] || []).join('·') + '</span><b></b>';
       b.querySelector('b').textContent = s.name.replace(/\s*\(.*/, '');
       b.addEventListener('click', function(e){ e.stopPropagation(); select(s.id, true); });
@@ -1250,7 +1318,7 @@
         return '<button class="vtog' + (today ? ' on' : '') + '" data-act="visit">' + STAR +
                '<span>' + label + '</span></button>' + vlistHTML(s.id);
       })();
-    pop.querySelector('h3').textContent = s.id + '. ' + s.name;
+    pop.querySelector('h3').textContent = (s.user ? '✦ ' : s.id + '. ') + s.name;
     pop.querySelector('.c-tag').textContent = s.tag;
     pop.querySelector('.a-txt').textContent = s.addr + (s.flag ? ' · ' + s.flag : '');
     pop.querySelector('p').textContent = s.desc;
@@ -1389,6 +1457,21 @@
       else if (a === 'search') openUrl(amapSearch(s));
       else if (a === 'web') openUrl(amapWeb(s));
       else if (a === 'apple') openUrl(appleMap(s));
+      else if (a === 'hide'){                    // 정식 장소는 삭제 대신 숨기기 (기록·공용 데이터 보호)
+        hiddenIds[s.id] = 1;
+        saveHidden();
+        if (activeId === s.id){ activeId = null; closePop(); }
+        applyListFilter(); drawPins(); paintHiddenBar();
+        toast("숨겼어요 — 푸터의 '모두 복원'으로 되돌릴 수 있어요.");
+      }
+      else if (a === 'updel'){                   // 내 장소는 본인 데이터라 진짜 삭제
+        if (!window.confirm("내 장소 '" + s.name + "'을(를) 삭제할까요?")) return;
+        uplaces = uplaces.filter(function(u){ return u.uid !== s.id; });
+        saveUp();
+        if (activeId === s.id){ activeId = null; closePop(); }
+        renderUplaces();
+        toast('삭제했어요.');
+      }
       return;
     }
     var card = e.target.closest ? e.target.closest('.card') : null;
@@ -1402,11 +1485,7 @@
     if (!b) return;
     group = b.dataset.g;
     [].forEach.call(tabs.children, function(x){ x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
-    cards.forEach(function(c){ c.hidden = !(group === 'all' || c.dataset.group === group); });
-    [].forEach.call(document.querySelectorAll('.grouphead'), function(gh){
-      var has = spots.some(function(s){ return s.group === gh.dataset.group; });
-      gh.hidden = !has || !(group === 'all' || gh.dataset.group === group);
-    });
+    applyListFilter();
     activeId = null;
     closePop();
     fitAll();
@@ -1457,7 +1536,7 @@
     applyT();
     queueFill();
   }
-  var drag = null, pinch = null, lastTap = 0;
+  var drag = null, pinch = null, lastTap = 0, lastMouseMoved = 0;
 
   function fromUI(e){
     var t = e.target;
@@ -1465,15 +1544,24 @@
   }
   map.addEventListener('mousedown', function(e){
     if (fromUI(e)) return;                 // 팝업 버튼 누를 때 지도가 밀리던 문제
-    drag = { x:e.clientX, y:e.clientY };
+    drag = { x:e.clientX, y:e.clientY, moved:0 };
     map.style.cursor = 'grabbing';
   });
   window.addEventListener('mousemove', function(e){
     if (!drag) return;
+    drag.moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y);
     panBy(e.clientX - drag.x, e.clientY - drag.y);
     drag.x = e.clientX; drag.y = e.clientY;
   });
-  window.addEventListener('mouseup', function(){ drag = null; map.style.cursor = 'grab'; });
+  window.addEventListener('mouseup', function(){
+    lastMouseMoved = drag ? drag.moved : 0;
+    drag = null;
+    map.style.cursor = 'grab';
+  });
+  map.addEventListener('click', function(e){   // 픽 모드: 드래그가 아닌 한 번 클릭으로 위치 지정
+    if (!pickMode || fromUI(e) || lastMouseMoved > 8) return;
+    pickAt(e.clientX, e.clientY);
+  });
 
   function dist(a, b){
     return Math.sqrt(Math.pow(a.clientX - b.clientX, 2) + Math.pow(a.clientY - b.clientY, 2));
@@ -1518,6 +1606,11 @@
       return;
     }
     if (drag && drag.moved < 8 && e.changedTouches.length){
+      if (pickMode){                       // 픽 모드: 탭 한 번으로 위치 지정
+        pickAt(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        drag = null;
+        return;
+      }
       var now = Date.now();
       if (now - lastTap < 320){
         var r = map.getBoundingClientRect();
@@ -1584,6 +1677,176 @@
     var px = Math.round(m / mpp);
     scaleEl.firstChild.nodeValue = m >= 1000 ? (m / 1000) + 'km' : m + 'm';
     scaleEl.querySelector('span').style.width = px + 'px';
+  }
+
+  /* ───── 사용자 장소(내 장소) ─────
+     클로드 없이 브라우저에서 장소를 추가한다 (docs/02-design/user-places.design.md).
+     localStorage(shcafemap.uplaces.v1)에 저장하고, 시작·변경 시 정식 카드와 같은
+     DOM(article.card.uplace)으로 물질화해 spots/cards에 합류시킨다 — 핀·팝업·
+     방문 기록·계획 패널·주변 추천이 그대로 동작한다. 좌표는 지도를 눌러 찍는다
+     (타일이 GCJ-02라 찍은 좌표가 곧 고덕 좌표). 공식 숫자에서는 제외.
+     정식 장소 숨기기(shcafemap.hidden.v1)도 여기서 관리한다. */
+  var UPKEY = 'shcafemap.uplaces.v1', HKEY = 'shcafemap.hidden.v1';
+  var uplaces = [], hiddenIds = {};
+  try { uplaces = JSON.parse(localStorage.getItem(UPKEY)) || []; } catch (e) {}
+  try {
+    (JSON.parse(localStorage.getItem(HKEY)) || []).forEach(function(id){ hiddenIds[id] = 1; });
+  } catch (e) {}
+  function saveUp(){
+    try { localStorage.setItem(UPKEY, JSON.stringify(uplaces)); }
+    catch (e) { storageOK = false; }
+  }
+  function saveHidden(){
+    try { localStorage.setItem(HKEY, JSON.stringify(Object.keys(hiddenIds))); } catch (e) {}
+  }
+
+  function uplaceCardHTML(u){
+    var xy = typeof u.lat === 'number' && typeof u.lon === 'number';
+    return '<article class="card uplace" data-id="' + esc(u.uid) + '" data-group="' + u.group + '"' +
+      ' data-fix="' + (xy ? 'ok' : 'unknown') + '"' + (xy ? '' : ' data-nopin="1"') +
+      ' data-lat="' + (xy ? u.lat : 0) + '" data-lon="' + (xy ? u.lon : 0) + '" data-kw="' + esc(u.name) + '">' +
+      '<div class="c-head"><div class="idx">✦</div>' +
+      '<div class="c-title"><h3 class="c-name">' + esc(u.name) + '</h3><span class="c-tag">내 장소</span></div></div>' +
+      '<div class="addr-row"><div class="c-addr"><span class="a-txt">' +
+        (xy ? 'GCJ-02 ' + u.lat.toFixed(5) + ', ' + u.lon.toFixed(5) + ' (지도에서 찍음)'
+            : '위치 미지정 — 이름으로 검색') + '</span></div></div>' +
+      '<p class="c-desc">' + esc(u.memo || '메모 없음') + '</p>' +
+      '<div class="links">' + (xy
+        ? '<a href="#" data-act="search">이름으로 검색</a><a href="#" data-act="web">웹 지도</a><a href="#" data-act="apple">Apple 지도</a>'
+        : '<a href="#" data-act="apple">Apple 지도에서 검색</a>') +
+      '<a href="#" data-act="updel">이 장소 삭제</a></div></article>';
+  }
+
+  function renderUplaces(){                // 내 장소 섹션을 다시 물질화하고 spots/cards를 재구성
+    var box = document.getElementById('uplist');
+    box.innerHTML = uplaces.length
+      ? '<div class="grouphead" data-group="mine"><h2>내 장소</h2><span>MINE · ' + uplaces.length + '</span></div>' +
+        uplaces.map(uplaceCardHTML).join('')
+      : '';
+    var upCards = [].slice.call(box.querySelectorAll('.card'));
+    cards = baseCards.concat(upCards);
+    spots = baseSpots.concat(upCards.map(info));
+    spots.forEach(function(s){ if (s.user) injectExtras(s); });
+    paintCounts();
+    paintVisits();
+    applyListFilter();
+    drawPins();
+    drawRoutes();
+    paintHiddenBar();
+  }
+
+  function applyListFilter(){              // 그룹 탭 + 숨김을 한 번에 적용 (탭 핸들러와 공용)
+    cards.forEach(function(c){
+      c.hidden = !!hiddenIds[c.dataset.id] || !(group === 'all' || c.dataset.group === group);
+    });
+    [].forEach.call(document.querySelectorAll('.grouphead'), function(gh){
+      if (gh.dataset.group === 'mine'){
+        gh.hidden = !cards.some(function(c){ return c.classList.contains('uplace') && !c.hidden; });
+        return;
+      }
+      var has = spots.some(function(s){ return !s.user && s.group === gh.dataset.group && !hiddenIds[s.id]; });
+      gh.hidden = !has || !(group === 'all' || gh.dataset.group === group);
+    });
+  }
+
+  function paintHiddenBar(){
+    var n = Object.keys(hiddenIds).length;
+    document.getElementById('hiddenbar').hidden = !n;
+    document.getElementById('hidcount').textContent = n;
+  }
+  document.getElementById('unhideall').addEventListener('click', function(){
+    hiddenIds = {};
+    saveHidden();
+    applyListFilter(); drawPins(); paintHiddenBar();
+    toast('숨긴 장소를 모두 복원했어요.');
+  });
+
+  /* 추가 폼 + 지도에서 위치 찍기 */
+  var upformEl = document.getElementById('upform');
+  var pendingLoc = null, pickMode = false;
+  function openUpForm(keep){
+    if (!keep){
+      document.getElementById('up-name').value = '';
+      document.getElementById('up-memo').value = '';
+      var d = document.querySelector('input[name="upg"][value="spot"]');
+      if (d) d.checked = true;
+      pendingLoc = null;
+    }
+    document.getElementById('up-loctxt').textContent = pendingLoc
+      ? '위치: 지정됨 (' + pendingLoc.lat.toFixed(5) + ', ' + pendingLoc.lon.toFixed(5) + ')'
+      : '위치: 미지정 (목록에만 표시)';
+    document.getElementById('up-locclear').hidden = !pendingLoc;
+    upformEl.classList.add('on');
+  }
+  function pickAt(cx, cy){                 // 지도의 화면 좌표 → GCJ-02 (타일이 GCJ-02라 그대로 고덕 좌표)
+    var r = map.getBoundingClientRect();
+    var g = unproject(origin.x + cx - r.left, origin.y + cy - r.top, zoom);
+    pendingLoc = { lat: +g.lat.toFixed(6), lon: +g.lon.toFixed(6) };
+    pickMode = false;
+    document.body.classList.remove('picking');
+    openUpForm(true);
+  }
+  document.getElementById('upadd').addEventListener('click', function(){ openUpForm(false); });
+  document.getElementById('up-cancel').addEventListener('click', function(){
+    upformEl.classList.remove('on');
+    pickMode = false;
+    document.body.classList.remove('picking');
+  });
+  document.getElementById('up-locclear').addEventListener('click', function(){
+    pendingLoc = null;
+    openUpForm(true);
+  });
+  document.getElementById('up-pick').addEventListener('click', function(){
+    upformEl.classList.remove('on');
+    pickMode = true;
+    document.body.classList.add('picking');
+    window.scrollTo({ top: 0, behavior: 'smooth' });   // 지도가 보이게
+    toast('지도를 한 번 누르면 그 자리가 장소 위치가 돼요. 이동·확대는 그대로 됩니다.');
+  });
+  document.getElementById('up-save').addEventListener('click', function(){
+    var name = document.getElementById('up-name').value.trim();
+    if (!name){ toast('장소 이름을 입력하세요.'); return; }
+    var g = (document.querySelector('input[name="upg"]:checked') || {}).value || 'spot';
+    var uid = 'u' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+    uplaces.push({ uid: uid, name: name, group: g,
+      memo: document.getElementById('up-memo').value.trim(),
+      lat: pendingLoc ? pendingLoc.lat : null,
+      lon: pendingLoc ? pendingLoc.lon : null });
+    saveUp();
+    upformEl.classList.remove('on');
+    renderUplaces();
+    if (pendingLoc) select(uid, false);
+    toast(pendingLoc ? '내 장소로 추가했어요.' : '내 장소로 추가했어요 — 위치가 없어 목록에만 보여요.');
+    if (!storageOK && !warned){
+      warned = true;
+      toast('이 환경에서는 저장되지 않아요. 새로고침하면 사라집니다.');
+    }
+  });
+
+  /* 공유 링크에서 내 장소 받기 — 같은 uid나 (같은 이름 + 60m 이내)면 기존 것 재사용 */
+  function importUplaces(list){
+    var idMap = {}, added = 0;
+    (list || []).forEach(function(o){
+      var uid = String(o.i || '');
+      if (!uid) return;
+      var exist = null;
+      uplaces.forEach(function(u){
+        if (exist) return;
+        if (u.uid === uid) exist = u;
+        else if (u.name === o.n && typeof o.la === 'number' && typeof u.lat === 'number' &&
+                 havKm({ lat: u.lat, lon: u.lon }, { lat: o.la, lon: o.lo }) < 0.06) exist = u;
+      });
+      if (exist){ idMap[uid] = exist.uid; return; }
+      uplaces.push({ uid: uid, name: String(o.n || '이름 없음'),
+        group: (o.g === 'cafe' || o.g === 'tea') ? o.g : 'spot',
+        memo: String(o.m || ''),
+        lat: typeof o.la === 'number' ? o.la : null,
+        lon: typeof o.lo === 'number' ? o.lo : null });
+      idMap[uid] = uid;
+      added++;
+    });
+    if (added){ saveUp(); renderUplaces(); }
+    return idMap;
   }
 
   /* ───── 여행 계획 ─────
@@ -1699,7 +1962,7 @@
       .filter(function(x){ return x.d <= 3 && x.s.id !== st.placeId; })
       .sort(function(x, y){ return x.d - y.d; }).slice(0, 8);
     var rows = list.length ? list.map(function(x){
-      return '<span><b>' + x.s.id + '</b> ' + esc(x.s.name.replace(/\s*\(.*/, '')) + ' · ' + fmtKm(x.d) +
+      return '<span><b>' + (x.s.user ? '✦' : x.s.id) + '</b> ' + esc(x.s.name.replace(/\s*\(.*/, '')) + ' · ' + fmtKm(x.d) +
         '<span class="pn-act"><button data-pact="nearsee" data-id="' + x.s.id + '">지도</button>' +
         '<button data-pact="nearadd" data-id="' + x.s.id + '">다음에 추가</button></span></span>';
     }).join('') : '<span class="pn-none">3km 안에 등록된 장소가 없어요. 아래 버튼으로 고덕에서 찾아보세요.</span>';
@@ -1712,7 +1975,7 @@
     var s = st.placeId ? byId(st.placeId) : null;
     var badge = s
       ? '<button class="ps-ord link" data-pact="see" data-group="' + s.group +
-        '" title="지도 ' + s.id + '번 — 지도에서 보기">' + (si + 1) + '</button>'
+        '" title="' + (s.user ? '내 장소' : '지도 ' + s.id + '번') + ' — 지도에서 보기">' + (si + 1) + '</button>'
       : '<span class="ps-ord">' + (si + 1) + '</span>';
     var near = (nearOpen === di + '-' + si && hasXY(st)) ? nearHTML(st, di, si) : '';
     var dis = locked ? ' disabled' : '';
@@ -1802,6 +2065,32 @@
         return s;
       }).join(',');
     }).join(';');
+  }
+  function stopToShare(st){              // v1/v3 JSON용 스톱 직렬화
+    var o = {};
+    if (st.time) o.t = st.time;
+    if (st.placeId && byId(st.placeId)) o.i = st.placeId;
+    else if (st.name) o.n = st.name;
+    if (st.leg && st.leg.min) o.g = [st.leg.min, st.leg.mode || ''];
+    if (st.rsv) o.r = 1;
+    return o;
+  }
+  function sharePayload(){               // 내 장소(uid)를 참조하면 v3 JSON, 아니면 v2 초압축
+    var used = {};
+    plan.days.forEach(function(d){
+      d.stops.forEach(function(st){
+        if (st.placeId && st.placeId.charAt(0) === 'u' && byId(st.placeId)) used[st.placeId] = 1;
+      });
+    });
+    var ids = Object.keys(used);
+    if (!ids.length) return shareCompact();
+    return JSON.stringify({ v: 3,
+      d: plan.days.map(function(day){ return day.stops.map(stopToShare); }),
+      u: ids.map(function(uid){
+        var u = null;
+        uplaces.forEach(function(x){ if (x.uid === uid) u = x; });
+        return { i: u.uid, n: u.name, g: u.group, la: u.lat, lo: u.lon, m: u.memo || '' };
+      }) });
   }
   function parseCompact(str){
     return { v:2, d: str.split(';').map(function(dstr){
@@ -1922,7 +2211,7 @@
     }
     if (act === 'copyplan'){ copyAddr(planSummary(), '계획을 복사했어요.'); return; }
     if (act === 'shareplan'){
-      var url = location.href.split('#')[0] + '#plan=' + b64e(shareCompact());
+      var url = location.href.split('#')[0] + '#plan=' + b64e(sharePayload());
       copyAddr(url, '공유 링크를 복사했어요 — 메신저로 보내면 여는 사람의 계획에 추가돼요.');
       return;
     }
@@ -2067,7 +2356,7 @@
     psel.className = 'psel';
     psel.innerHTML = tabs + (list.length ? list.map(function(s){
       return '<button type="button" data-pick="' + s.id + '" data-group="' + s.group + '">' +
-             '<span class="pid">' + s.id + '</span>' + esc(shortName(s)) +
+             '<span class="pid">' + (s.user ? '✦' : s.id) + '</span>' + esc(shortName(s)) +
              '<span class="ptag">' + esc(s.tag) + '</span></button>';
     }).join('') : '<span class="pnone">' + (ql
       ? '이 분류에 없는 장소예요 — 다른 탭을 보거나, 이대로 두면 자유 입력으로 저장됩니다.'
@@ -2182,9 +2471,17 @@
       else if (raw.slice(0, 2) === '2.') data = parseCompact(raw.slice(2));
     } catch (e) {}
     if (!data || !data.d || !data.d.length){ toast('공유된 계획을 읽지 못했어요.'); return; }
+    var upCnt = (data.v === 3 && data.u) ? data.u.length : 0;
+    var preN = data.d.reduce(function(a, d){ return a + (d ? d.length : 0); }, 0);
+    if (!window.confirm('공유받은 여행 계획이 있어요: ' + data.d.length + '일차 · ' + preN + '곳' +
+        (upCnt ? ' (친구가 만든 장소 ' + upCnt + '곳 포함)' : '') + '.\n내 계획에 추가할까요?')) return;
+    if (upCnt){                          // 내 장소를 먼저 추가해야 스톱의 uid가 살아난다
+      var idMap = importUplaces(data.u);
+      data.d.forEach(function(stops){
+        (stops || []).forEach(function(o){ if (o.i && idMap[o.i]) o.i = idMap[o.i]; });
+      });
+    }
     var days = importDays(data);
-    var n = days.reduce(function(a, d){ return a + d.stops.length; }, 0);
-    if (!window.confirm('공유받은 여행 계획이 있어요: ' + days.length + '일차 · ' + n + '곳.\n내 계획에 추가할까요?')) return;
     var who = '';                       // 출처 태그 — 내 일차와 구분하기 위해 붙인다
     try { who = window.prompt('보낸 사람 이름을 적으면 일차에 태그로 붙어요. (비워도 됨)', '') || ''; } catch (e) {}
     var now = new Date();
@@ -2294,6 +2591,7 @@
   });
 
   paintCounts();      // 헤더·탭·범례·푸터의 숫자를 카드에서 채운다
+  renderUplaces();    // 저장된 '내 장소'를 물질화 (spots/cards 합류 + 숨김 필터 적용)
   paintRoutes();      // 저장된 방문 기록이 있으면 일차 칩을 바로 보여준다
   setLayout();
   fitAll();
