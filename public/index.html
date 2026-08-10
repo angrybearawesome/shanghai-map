@@ -318,6 +318,14 @@
   .ps-time{flex:0 0 116px; padding:7px 5px}  /* '오전 10:40' + 시계 아이콘이 잘리지 않는 폭 */
   .ps-time::-webkit-calendar-picker-indicator{margin:0; padding:0}
   .ps-place{flex:1}
+  .ps-nw{flex:1; min-width:0; position:relative; display:flex}
+  .ps-nw .ps-place{flex:1; padding-right:28px}
+  .ps-rsv{position:absolute; right:3px; top:50%; transform:translateY(-50%); width:24px; height:24px;
+    border:0; background:none; color:#d3dce4; font-size:14px; cursor:pointer; padding:0; line-height:1}
+  .ps-rsv.on{color:var(--gold-d)}
+  .ps-rsv:disabled{cursor:default}
+  .prsv{margin:2px 0 4px 33px; font-size:11px; font-weight:600; color:var(--gold-d);
+    background:var(--gold-soft); border:1px solid #f0e3c0; border-radius:8px; padding:4px 9px; width:fit-content}
   .ps-tools{flex:0 0 auto; display:flex; gap:3px}
   .ps-tools button{width:26px; height:26px; border:1px solid var(--line); border-radius:7px; background:#fff;
     color:#6b7c8c; font-size:12px; cursor:pointer; padding:0}
@@ -1619,6 +1627,11 @@
     return m >= 60 ? Math.floor(m / 60) + '시간' + (m % 60 ? ' ' + (m % 60) + '분' : '') : m + '분';
   }
   function fmtKm(d){ return d < 1 ? Math.round(d * 1000) + 'm' : (Math.round(d * 10) / 10) + 'km'; }
+  function fmtHM(m){                     // 분 → 'HH:MM' (자정 앞뒤로 감아준다)
+    m = ((m % 1440) + 1440) % 1440;
+    var h = Math.floor(m / 60), mm = m % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+  }
   function timeMin(t){                   // 'HH:MM' → 분. 없으면 null
     if (!t) return null;
     var p = t.split(':');
@@ -1703,16 +1716,25 @@
       : '<span class="ps-ord">' + (si + 1) + '</span>';
     var near = (nearOpen === di + '-' + si && hasXY(st)) ? nearHTML(st, di, si) : '';
     var dis = locked ? ' disabled' : '';
+    var rsvRow = '';
+    if (st.rsv){                         // 예약 필요 표시 — 시간이 있으면 1시간 전 권장 시각까지
+      var tm = timeMin(st.time);
+      rsvRow = '<div class="prsv">★ ' + (tm !== null
+        ? '예약 권장 ' + fmtHM(tm - 60) + '까지 (도착 1시간 전)'
+        : '예약 필요 — 시간을 넣으면 권장 시각이 계산됩니다') + '</div>';
+    }
     return '<div class="pstop" data-di="' + di + '" data-si="' + si + '">' + badge +
       '<input type="time" class="ps-time' + (st.time ? '' : ' empty') + '" aria-label="시간"' + dis +
         ' value="' + esc(st.time || '') + '">' +
-      '<input type="text" class="ps-place" autocomplete="off" placeholder="장소 이름"' + dis +
+      '<span class="ps-nw"><input type="text" class="ps-place" autocomplete="off" placeholder="장소 이름"' + dis +
         ' value="' + esc(st.name || '') + '">' +
+        '<button class="ps-rsv' + (st.rsv ? ' on' : '') + '" data-pact="rsv"' + dis +
+        ' title="예약 필요 표시 — 도착 1시간 전 권장 시각을 보여줍니다">★</button></span>' +
       (locked ? '' : '<span class="ps-tools">' +
         (hasXY(st) ? '<button data-pact="near" title="주변 장소 추천">주변</button>' : '') +
         '<button data-pact="up"' + (si === 0 ? ' disabled' : '') + ' aria-label="위로">↑</button>' +
         '<button data-pact="down"' + (si === n - 1 ? ' disabled' : '') + ' aria-label="아래로">↓</button>' +
-        '<button data-pact="delstop" aria-label="삭제">✕</button></span>') + '</div>' + near;
+        '<button data-pact="delstop" aria-label="삭제">✕</button></span>') + '</div>' + rsvRow + near;
   }
 
   function dayHTML(day, di){
@@ -1767,7 +1789,7 @@
   /* v2 초압축 포맷 — 링크를 짧게 유지한다. 일차는 ';', 스톱은 ',',
      스톱 = [HHMM][@장소id | ~이름][+분[:교통편]]. 예: 1540@18,1710@15
      이름·교통편에서 구분자(; , @ ~ +)는 공백으로 치환한다. */
-  function cleanTxt(x){ return String(x).replace(/[;,@~+]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function cleanTxt(x){ return String(x).replace(/[;,@~+!]/g, ' ').replace(/\s+/g, ' ').trim(); }
   function shareCompact(){
     return '2.' + plan.days.map(function(day){
       return day.stops.map(function(st){
@@ -1776,6 +1798,7 @@
         if (st.placeId && byId(st.placeId)) s += '@' + st.placeId;
         else if (st.name) s += '~' + cleanTxt(st.name);
         if (st.leg && st.leg.min) s += '+' + st.leg.min + (st.leg.mode ? ':' + cleanTxt(st.leg.mode) : '');
+        if (st.rsv) s += '!';            // 예약 필요 별표
         return s;
       }).join(',');
     }).join(';');
@@ -1785,6 +1808,7 @@
       if (!dstr) return [];
       return dstr.split(',').map(function(tok){
         var o = {};
+        if (tok.slice(-1) === '!'){ o.r = 1; tok = tok.slice(0, -1); }
         var m = /^(\d{3,4})?(?:@(\d+)|~([^+]*))?(?:\+(\d+)(?::(.*))?)?$/.exec(tok) || [];
         if (m[1]){ var t = ('0000' + m[1]).slice(-4); o.t = t.slice(0, 2) + ':' + t.slice(2); }
         if (m[2]) o.i = m[2];
@@ -1798,7 +1822,7 @@
     return (data.d || []).map(function(stops){
       return { stops: (stops || []).map(function(o){
         var s = o.i ? byId(String(o.i)) : null;
-        return {
+        var stop = {
           time: typeof o.t === 'string' ? o.t : '',
           name: s ? shortName(s) : String(o.n || ''),
           placeId: s ? s.id : null,
@@ -1806,6 +1830,8 @@
           lon: s ? s.lon : null,
           leg: (o.g && +o.g[0] > 0) ? { min:+o.g[0], mode:String(o.g[1] || '') } : null
         };
+        if (o.r) stop.rsv = true;
+        return stop;
       })};
     });
   }
@@ -1815,7 +1841,9 @@
     plan.days.forEach(function(day, di){
       out.push((di + 1) + '일차');
       day.stops.forEach(function(st, si){
-        out.push('  ' + (st.time || '--:--') + ' ' + (st.name || '(장소 미정)'));
+        var tm = st.rsv ? timeMin(st.time) : null;
+        out.push('  ' + (st.time || '--:--') + ' ' + (st.name || '(장소 미정)') +
+          (st.rsv ? ' ★예약' + (tm !== null ? '(권장 ' + fmtHM(tm - 60) + '까지)' : '') : ''));
         if (si < day.stops.length - 1){
           var nx = day.stops[si + 1];
           if (st.leg && st.leg.min)
@@ -1961,6 +1989,11 @@
       legEdit = nearOpen = null;
       savePlan(); renderPlan(); drawRoutes(); return;
     }
+    if (act === 'rsv'){                  // 예약 필요 별표 토글
+      st.rsv = !st.rsv;
+      if (!st.rsv) delete st.rsv;
+      savePlan(); renderPlan(); return;
+    }
     if (act === 'near'){
       nearOpen = (nearOpen === key) ? null : key;
       legEdit = null;
@@ -2083,11 +2116,20 @@
     if (t.classList.contains('ps-place')){ openPsel(t); return; }   // 타이핑하면 목록을 좁힌다
     if (!t.classList.contains('ps-time')) return;
     var di = +row.dataset.di, si = +row.dataset.si;
-    plan.days[di].stops[si].time = t.value;
+    var st = plan.days[di].stops[si];
+    st.time = t.value;
     t.classList.toggle('empty', !t.value);   // 미입력만 흐리게 (디자인 가이드 ③)
     savePlan();
     refreshLeg(di, si - 1);
     refreshLeg(di, si);
+    if (st.rsv){                             // 예약 권장 시각도 즉시 갱신
+      var pr = row.nextElementSibling;
+      var tm = timeMin(t.value);
+      if (pr && pr.classList.contains('prsv'))
+        pr.textContent = '★ ' + (tm !== null
+          ? '예약 권장 ' + fmtHM(tm - 60) + '까지 (도착 1시간 전)'
+          : '예약 필요 — 시간을 넣으면 권장 시각이 계산됩니다');
+    }
   });
 
   planBox.addEventListener('change', function(e){

@@ -235,6 +235,19 @@ check('계획: 일차 이동 + 자동 재번호',
       dmove.labels === '1일차,2일차' && dmove.stops0 === 2 && dmove.stops1 === 3,
       JSON.stringify(dmove));
 
+/* 예약 별표: 토글 → 권장 시각(도착 1시간 전) 칩, 시간 변경 시 즉시 갱신 */
+const rsv = await page.evaluate(() => {
+  const row = document.querySelector('.pstop[data-di="0"][data-si="0"]');
+  row.querySelector('.ps-rsv').click();
+  const row2 = document.querySelector('.pstop[data-di="0"][data-si="0"]');
+  const chip = row2.nextElementSibling;
+  return {
+    on: row2.querySelector('.ps-rsv').classList.contains('on'),
+    chip: chip && chip.classList.contains('prsv') ? chip.textContent : '',
+  };
+});
+check('계획: 예약 별표 + 권장 시각 (10:00 → 09:00)', rsv.on && /09:00/.test(rsv.chip), rsv.chip);
+
 /* 안내문 닫기 기억 (위에서 닫음 → reload 후에도 닫혀 있어야 한다) */
 await page.reload({ waitUntil: 'load' });
 await new Promise(r => setTimeout(r, 900));
@@ -264,6 +277,7 @@ const imp = await page.evaluate(() => {
     days: p.days.length, stops: st.length,
     linked: st[0] && st[0].placeId === '15' && typeof st[0].lat === 'number',
     leg: st[1] && st[1].leg && st[1].leg.min === 150,
+    rsv: st[0] && st[0].rsv === true,
     src: (p.days[0] || {}).src || '',
     tagShown: !!document.querySelector('.pday.shared .pd-src'),
     locked: !document.querySelector('.pday.shared .ps-tools') &&
@@ -277,8 +291,8 @@ const unlocked = await page.evaluate(() => {
   return !!document.querySelector('.pday.shared .ps-tools') &&
          !document.querySelector('.pday.shared .ps-time').disabled;
 });
-check('공유: 가져오기 (2일차·3곳·장소 복원·수동 구간)',
-      imp.days === 2 && imp.stops === 3 && imp.linked && imp.leg,
+check('공유: 가져오기 (2일차·3곳·장소 복원·수동 구간·예약 별표)',
+      imp.days === 2 && imp.stops === 3 && imp.linked && imp.leg && imp.rsv,
       JSON.stringify(imp));
 check('공유: 출처 태그 (보낸 사람·날짜)', /^철수 · \d+\/\d+$/.test(imp.src) && imp.tagShown, imp.src);
 check('공유: 열람 모드 → 편집 해제', imp.locked && unlocked);
