@@ -99,7 +99,7 @@
     box-shadow:0 1px 3px rgba(23,41,59,.3)}
   .pin.visited .ord{display:block}
 
-  .pop{position:absolute; width:270px; transform:translate(-50%,calc(-100% - 42px)); z-index:30;
+  .pop{position:absolute; width:min(400px, calc(100vw - 36px)); transform:translate(-50%,calc(-100% - 42px)); z-index:30;
     background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 14px 12px;
     box-shadow:0 12px 34px rgba(23,41,59,.2); animation:rise .18s ease-out}
   @keyframes rise{from{opacity:0; transform:translate(-50%,calc(-100% - 32px))}}
@@ -111,6 +111,7 @@
     color:#9aabb8; font-size:15px; cursor:pointer; border-radius:8px}
   .pop p{margin:9px 0 0; font-size:12px; line-height:1.55; color:var(--mut);
     max-height:132px; overflow-y:auto; overscroll-behavior:contain; padding-right:3px}
+  @media (max-width:1023px){ .pop p{max-height:64px} }  /* 모바일: 팝업이 지도(42vh) 안에 들어오게 */
 
   .mapctl{position:absolute; right:11px; bottom:11px; display:flex; flex-direction:column; gap:7px; z-index:40}
   .mapctl button{width:38px; height:38px; border:1px solid var(--line); border-radius:11px;
@@ -1230,6 +1231,10 @@
     pop.querySelector('.a-txt').textContent = s.addr + (s.flag ? ' · ' + s.flag : '');
     pop.querySelector('p').textContent = s.desc;
     pinBox.appendChild(pop);
+    /* 핀 위 공간이 팝업보다 좁으면(모바일 42vh 지도 등) 지도를 내려서 다 보이게 */
+    var sy = p.y - origin.y;
+    var need = Math.min(H() - 24, window.innerWidth < 1024 ? 300 : 430);
+    if (sy < need) panBy(0, need - sy);
     if (scrollCard) s.el.scrollIntoView({ block:'nearest', behavior:'smooth' });
   }
   function closePop(){
