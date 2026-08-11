@@ -381,6 +381,24 @@ const up = await page.evaluate(() => ({
 check('내 장소: 추가 (목록만 1 + 지도 찍기 1)',
       up.cnt === 2 && up.upCards === 2 && up.upPins === 1 && up.mineHead, JSON.stringify(up));
 check('내 장소: 공식 숫자 불변', up.officialN === String(exp.total), `${up.officialN}/${exp.total}`);
+const paste = await page.evaluate(() => {          // 링크/좌표 붙여넣기 파싱 3종 + 권역 밖 거부
+  const inp = document.getElementById('up-paste');
+  const loc = () => document.getElementById('up-loctxt').textContent;
+  const feed = v => { inp.value = v; inp.dispatchEvent(new Event('input', { bubbles: true })); };
+  document.getElementById('upadd').click();
+  feed('https://maps.apple.com/place?address=x&coordinate=31.229600,121.486900&name=y');
+  const apple = /31\.2296/.test(loc());
+  feed('https://www.amap.com/?p=B000A8UIN8,31.917838,121.397028,이름,주소');
+  const amap = /31\.91784/.test(loc());
+  feed('31.2296, 121.4869');
+  const raw = /31\.2296/.test(loc());
+  feed('39.9042, 116.4074');                        // 베이징 — 권역 밖
+  const out = !document.getElementById('up-pastehint').hidden && /31\.2296/.test(loc());
+  document.getElementById('up-cancel').click();
+  return { apple, amap, raw, out };
+});
+check('내 장소: 붙여넣기 파싱 (애플·고덕·생좌표) + 권역 밖 거부',
+      paste.apple && paste.amap && paste.raw && paste.out, JSON.stringify(paste));
 const hid = await page.evaluate(() => {            // 정식 장소 숨기기/복원
   const before = document.querySelectorAll('.pin').length;
   document.querySelector('.card[data-id="01"] a[data-act="hide"]').click();
